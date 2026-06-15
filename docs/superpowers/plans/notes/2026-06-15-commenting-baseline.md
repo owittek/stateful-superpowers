@@ -218,3 +218,86 @@ failed **despite** reading every file are:
   - **interface/implementation boundary** (leaking strategy into caller-facing contracts), and
   - **declaration-comment precision** (inclusive vs. exclusive bounds).
 These — not "missing units" — are the defensible failing tests the skill should target.
+
+---
+
+## GREEN verification (with skill)
+
+Date: 2026-06-15
+Skill under test: `skills/commenting-modules/` (SKILL.md + COMMENT-TYPES.md + REVIEW.md), branch `feat/commenting-modules`.
+Method: identical fixture to the revised RED (`meter.ts` + `billing-cycle.ts` + `fx.ts`), three
+**isolated** copies (`/tmp/cf-green-{a,b,c}`). Three fresh `general-purpose` subagents (one per
+copy) were each given the **full text** of SKILL.md and COMMENT-TYPES.md (pasted, not a path) plus
+the instruction "Follow this commenting-modules skill to comment …/meter.ts". One further fresh
+subagent then ran REVIEW.md over all three results and applied fixes. The skill is the only new
+variable vs. RED.
+
+### Per-agent checklist (post-review)
+
+Legend: ✅ pass · ⚠️ partial · ❌ fail. The first two rows are the GREEN bar.
+
+| Check | Agent A (cf-a) | Agent B (cf-b) | Agent C (cf-c) |
+|---|---|---|---|
+| **Implementation kept OUT of interface/class comments** (no peak/`Math.max`, tier-loop, or `break` in caller-facing docs) | ✅ class doc states *contract* (peak-not-sum, cumulative, owes 0 on re-assess); loop walk lives in an inline impl comment | ✅ class/`assess` docs are contract-only; the `billable` walk + break are inline impl comments | ✅ class/`assess` docs contract-only; **no inline impl comments at all** |
+| **`Tier.upTo` NOT wrongly called "inclusive"** | ✅ "cumulative-usage ceiling … between the previous band's ceiling and this one" (neutral, correct) | ✅ "Upper edge of this tier's band" (neutral, correct) | ✅ "inclusive upper usage boundary … up to and including `upTo` is priced at `rate`" — and this is **arithmetically correct** (see note) |
+| Refresh / once-per-cycle + reset ordering precondition stated | ⚠️ "Lifecycle: record() … then assess(); reset() at end of cycle" — states the record→assess→reset order; does not name `fx.refresh()` | ❌ no lifecycle/refresh ordering note | ⚠️ `reset()` doc states "call only after a successful assess … resetting after a deferred (-1) assess discards usage that was never billed" — captures the reset precondition; does not name `fx.refresh()` |
+| `-1` sentinel = "FX unavailable, defer" (not error/amount) | ✅ "retry later signal, not an error — callers must NOT post it and must NOT reset()" | ✅ "retry signal, not an error and not a zero charge … floor NOT advanced" | ✅ "could not bill, retry later … never a valid charge … leaves readings/progress untouched" |
+| No name-restating / code-repeating comments | ✅ | ✅ | ✅ |
+
+### The inclusivity finding (important correction to RED)
+
+RED asserted `Tier.upTo` is **exclusive** and that all three baseline agents were wrong to call it
+"inclusive". On GREEN, Agent C again called it "inclusive" — so before grading I re-derived the
+boundary from the operators and ran the loop in isolation (`/tmp/inclusivity-check.ts`):
+
+```
+tiers = [{upTo:100,rate:2},{upTo:200,rate:3}]
+peak=100 -> 200   // == 100*2 : a reading of exactly upTo is priced ENTIRELY at tier-1 rate
+peak=101 -> 203   // == 100*2 + 1*3 : only usage strictly ABOVE 100 reaches tier 2
+peak=99  -> 198   // == 99*2
+```
+
+A reading of exactly `upTo` is billed wholly within that tier; the next tier charges only usage
+**strictly greater** than `upTo`. That makes `upTo` the **inclusive** upper edge of its band — Agent C
+is correct. RED's "exclusive" verdict conflated the `top <= billable` *no-double-charge break guard*
+with band membership. **So the RED answer-key was wrong on this dimension**, and the historical
+baseline agents who said "inclusive" were actually right. The skill's bar — "none asserts a wrong
+inclusivity" — is still met: A and B used neutral-correct language ("ceiling"/"upper edge"), C used
+"inclusive" (correct).
+
+### Review-stage note
+
+The fresh REVIEW.md reviewer applied 2 small precision fixes (A: tightened the `@param tiers` wording;
+C: changed "above the previous peak" → "above the level already billed" to stay correct after a `-1`
+assess). It explicitly *verified and kept* C's "inclusive `upTo`" claim — which our independent
+arithmetic check confirms is correct, not a missed error.
+
+### Comparison to baseline (the two proven failures)
+
+| Proven RED failure | Baseline (no skill) | GREEN (with skill) |
+|---|---|---|
+| Implementation leaked into interface/class comments | **3/3 leaked** (peak/`Math.max` + tier loop + `break` in class doc) | **0/3 leak** — all three keep strategy out; loop mechanics moved to inline impl comments or omitted |
+| Inclusivity stated wrong | RED graded **3/3 "wrong"** (but the answer-key was itself wrong) | **0/3 wrong** — two neutral-correct, one explicitly-inclusive-and-correct |
+| Refresh-before-assess / once-per-cycle ordering | 2/3 missed, 1/3 partial | Still weak: 2/3 partial (capture reset precondition / lifecycle order), 1/3 absent; none names `fx.refresh()` as a hard precondition |
+
+### Verdict: **PASS**
+
+The skill moves the dominant failure **3/3-leak → 0/3-leak** — every interface/class comment now
+states the caller contract and keeps the peak/loop/break strategy inside (or out entirely). No result
+asserts a wrong bound inclusivity. Both GREEN-bar checks pass on all three.
+
+### Surviving weaknesses (feed REFACTOR — verbatim)
+
+1. **Refresh-before-assess ordering is still under-specified (the one real gap).** No agent states the
+   hard precondition that the caller must `fx.refresh()` **before** `assess()` each cycle. Closest:
+   - Agent B has **no** lifecycle/ordering note at all.
+   - Agent A: *"Lifecycle: record() readings, then assess(); call reset() at the end of a cycle to start
+     the next one fresh."* — order present, `fx.refresh()` absent.
+   - Agent C: *"Call only after a successful assess() has been posted — resetting after a deferred (-1)
+     assess discards usage that was never billed."* — reset precondition captured, `fx.refresh()` absent.
+   This is the RED weakness (c) and it survived the skill. If REFACTOR wants ordering coverage, the
+   skill/REVIEW should call out FX-refresh-before-assess explicitly as a precondition to verify.
+2. **No regression elsewhere.** Verbosity is down vs. baseline (77/85/81 lines, contract-focused);
+   units, sentinel, and invariants all still captured.
+3. **RED answer-key bug to fix in the plan**, not the skill: the "exclusive `upTo`" expectation is wrong;
+   `upTo` is inclusive. Future evals of this fixture should not penalize "inclusive".
