@@ -209,6 +209,15 @@ already use it in another harness.
 
 Read [the original release announcement](https://blog.fsck.com/2025/10/09/superpowers/).
 
+## Credits
+
+Stateful Superpowers stands on the shoulders of giants:
+
+- **[Superpowers](https://github.com/obra/superpowers)** by [Jesse Vincent](https://blog.fsck.com) and [Prime Radiant](https://primeradiant.com) — the framework spine this fork extends: the composable skill system, the brainstorm → plan → subagent-driven-development workflow, and the bootstrap that makes skills trigger automatically.
+- **[Skills for Real Engineers](https://github.com/mattpocock/skills)** by [Matt Pocock](https://www.aihero.dev) — the engineering skills whose mechanics we absorbed: the grill-with-docs interview discipline (`grilling`), `improving-architecture`, `prototype`, `zoom-out`, `handoff`, and the `CONTEXT.md` glossary + `docs/adr/` domain substrate.
+
+This fork's own contribution is the synthesis — folding that stateful domain-model discipline into the Superpowers spine without disturbing its workflow — with more of our own ideas layered on as the project grows.
+
 ## Contributing
 
 The general contribution process for Superpowers is below. Keep in mind that we don't generally accept contributions of new skills and that any updates to skills must work across all of the coding agents we support.
