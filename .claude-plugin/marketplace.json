@@ -1,19 +1,19 @@
 {
-  "name": "superpowers-dev",
-  "description": "Development marketplace for Superpowers core skills library",
+  "name": "stateful-superpowers-dev",
+  "description": "Development marketplace for the Stateful Superpowers skills library",
   "owner": {
-    "name": "Jesse Vincent",
-    "email": "jesse@fsck.com"
+    "name": "Olivier Wittek",
+    "email": "me@wittek.xyz"
   },
   "plugins": [
     {
-      "name": "superpowers",
-      "description": "Core skills library for Claude Code: TDD, debugging, collaboration patterns, and proven techniques",
-      "version": "5.1.0",
+      "name": "stateful-superpowers",
+      "description": "Stateful skills library for Claude Code: a self-driving brainstorm → plan → TDD → review workflow that remembers your project's language and key decisions across sessions. Based on Superpowers by Jesse Vincent and Matt Pocock's engineering skills.",
+      "version": "0.1.0",
       "source": "./",
       "author": {
-        "name": "Jesse Vincent",
-        "email": "jesse@fsck.com"
+        "name": "Olivier Wittek",
+        "email": "me@wittek.xyz"
       }
     }
   ]

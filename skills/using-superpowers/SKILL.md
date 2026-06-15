@@ -104,6 +104,14 @@ When multiple skills could apply, use this order:
 "Let's build X" → brainstorming first, then implementation skills.
 "Fix this bug" → debugging first, then domain-specific skills.
 
+### Routing by intent
+
+- **New feature / new behavior** → `superpowers:brainstorming`
+- **Restructure existing code, behavior preserved (refactor)** → `superpowers:improving-architecture`
+- **Bug / regression** → `superpowers:systematic-debugging`
+
+`brainstorming` and `improving-architecture` are **peer front-ends** — both grill, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
+
 ## Skill Types
 
 **Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
