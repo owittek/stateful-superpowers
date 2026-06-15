@@ -47,6 +47,10 @@ Apply the rules in [../grilling/CONTEXT-FORMAT.md](../grilling/CONTEXT-FORMAT.md
 - One- or two-sentence definitions — what the term **is**, not what it does.
 - When several words name one concept, pick the canonical one and list the rest under `_Avoid_`.
 - Propose **only terms not already in `CONTEXT.md`**. Never reword or delete existing entries.
+- **Verify each citation yourself before it reaches the draft.** The Explore subagent cites a
+  source per candidate, but you are the backstop: confirm the cited artifact actually exists
+  (read the file/symbol if in doubt) and drop any term you cannot trace to a real artifact.
+  Never pass through an uncited or unverifiable term — that is the never-fabricate guarantee.
 
 ### 4. Present the draft for approval (batch — the default)
 
