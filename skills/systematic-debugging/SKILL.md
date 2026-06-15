@@ -74,6 +74,8 @@ You MUST complete each phase before proceeding to the next.
    **WHEN system has multiple components (CI → build → signing, API → service → database):**
 
    **BEFORE proposing fixes, add diagnostic instrumentation:**
+
+   Tag every diagnostic line you add with a unique prefix (e.g. `[DEBUG-a4f2]`) so all of it can be removed later with a single grep.
    ```
    For EACH component boundary:
      - Log what data enters component
@@ -188,6 +190,7 @@ You MUST complete each phase before proceeding to the next.
    - Test passes now?
    - No other tests broken?
    - Issue actually resolved?
+   - All diagnostic instrumentation you added removed? (`grep` the `[DEBUG-...]` prefix — none should remain)
 
 4. **If Fix Doesn't Work**
    - STOP
