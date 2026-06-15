@@ -30,6 +30,8 @@ Thanks!
 
 ## Installation
 
+> **This is a fork.** It is not published to the upstream/official plugin marketplaces. Install it from this repository — marketplace `owittek/stateful-superpowers`, plugin `stateful-superpowers@stateful-superpowers-dev`. Where a step below points at an official/upstream marketplace, substitute the fork's repository.
+
 Installation differs by harness. If you use more than one, install Superpowers separately for each one.
 
 ### Claude Code
@@ -51,13 +53,13 @@ The Superpowers marketplace provides Superpowers and some other related plugins 
 - Register the marketplace:
 
   ```bash
-  /plugin marketplace add obra/superpowers-marketplace
+  /plugin marketplace add owittek/stateful-superpowers
   ```
 
 - Install the plugin from this marketplace:
 
   ```bash
-  /plugin install superpowers@superpowers-marketplace
+  /plugin install stateful-superpowers@stateful-superpowers-dev
   ```
 
 ### Codex CLI
@@ -91,13 +93,13 @@ Superpowers is available via the [official Codex plugin marketplace](https://git
 - Register the marketplace:
 
   ```bash
-  droid plugin marketplace add https://github.com/obra/superpowers
+  droid plugin marketplace add https://github.com/owittek/stateful-superpowers
   ```
 
 - Install the plugin:
 
   ```bash
-  droid plugin install superpowers@superpowers
+  droid plugin install stateful-superpowers@stateful-superpowers-dev
   ```
 
 ### Gemini CLI
@@ -105,13 +107,13 @@ Superpowers is available via the [official Codex plugin marketplace](https://git
 - Install the extension:
 
   ```bash
-  gemini extensions install https://github.com/obra/superpowers
+  gemini extensions install https://github.com/owittek/stateful-superpowers
   ```
 
 - Update later:
 
   ```bash
-  gemini extensions update superpowers
+  gemini extensions update stateful-superpowers
   ```
 
 ### OpenCode
@@ -122,7 +124,7 @@ already use it in another harness.
 - Tell OpenCode:
 
   ```
-  Fetch and follow instructions from https://raw.githubusercontent.com/obra/superpowers/refs/heads/main/.opencode/INSTALL.md
+  Fetch and follow instructions from https://raw.githubusercontent.com/owittek/stateful-superpowers/refs/heads/main/.opencode/INSTALL.md
   ```
 
 - Detailed docs: [docs/README.opencode.md](docs/README.opencode.md)
