@@ -109,6 +109,7 @@ When multiple skills could apply, use this order:
 - **New feature / new behavior** → `superpowers:brainstorming`
 - **Restructure existing code, behavior preserved (refactor)** → `superpowers:improving-architecture`
 - **Bug / regression** → `superpowers:systematic-debugging`
+- **Document or comment a module (interfaces, fields, non-obvious internals)** → `superpowers:commenting-modules`
 
 `brainstorming` and `improving-architecture` are **peer front-ends** — both grill, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
 

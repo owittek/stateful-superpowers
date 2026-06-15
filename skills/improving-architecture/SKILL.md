@@ -30,6 +30,16 @@ This skill is _informed_ by the project's domain model. The domain language give
 
 ## Process
 
+### 0. Choose scope
+
+Before exploring, ask the user — one question, recommend **both**:
+
+> Do you want **architecture only**, **commenting only**, or **both** (recommended — refactor, then comment what changed)?
+
+- **architecture only** → continue with the steps below.
+- **commenting only** → skip to `superpowers:commenting-modules` (its Stage 0 resolves the target set from your direction). Do not run the steps below.
+- **both** → run the steps below; the plan's final phase will comment the touched modules (see `superpowers:writing-plans`).
+
 ### 1. Explore
 
 Read the project's domain glossary and any ADRs in the area you're touching first.
