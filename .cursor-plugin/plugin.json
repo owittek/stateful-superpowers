@@ -1,14 +1,14 @@
 {
-  "name": "superpowers",
-  "displayName": "Superpowers",
-  "description": "Core skills library: TDD, debugging, collaboration patterns, and proven techniques",
+  "name": "stateful-superpowers",
+  "displayName": "Stateful Superpowers",
+  "description": "Stateful skills library for Claude Code: a self-driving brainstorm → plan → TDD → review workflow that remembers your project's language and key decisions across sessions. Based on Superpowers by Jesse Vincent and Matt Pocock's engineering skills.",
   "version": "0.2.0",
   "author": {
-    "name": "Jesse Vincent",
-    "email": "jesse@fsck.com"
+    "name": "Olivier Wittek",
+    "email": "me@wittek.xyz"
   },
-  "homepage": "https://github.com/obra/superpowers",
-  "repository": "https://github.com/obra/superpowers",
+  "homepage": "https://github.com/owittek/stateful-superpowers",
+  "repository": "https://github.com/owittek/stateful-superpowers",
   "license": "MIT",
   "keywords": [
     "skills",
@@ -16,7 +16,8 @@
     "debugging",
     "collaboration",
     "best-practices",
-    "workflows"
+    "workflows",
+    "stateful"
   ],
   "skills": "./skills/",
   "agents": "./agents/",
