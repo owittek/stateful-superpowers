@@ -182,6 +182,9 @@ already use it in another harness.
 
 **Collaboration** 
 - **brainstorming** - Socratic design refinement
+- **grilling** - Relentless one-question-at-a-time design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
+- **prototype** - Build a throwaway probe to answer one design question discussion can't settle
+- **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
 - **writing-plans** - Detailed implementation plans
 - **executing-plans** - Batch execution with checkpoints
 - **dispatching-parallel-agents** - Concurrent subagent workflows
@@ -194,6 +197,8 @@ already use it in another harness.
 **Meta**
 - **writing-skills** - Create new skills following best practices (includes testing methodology)
 - **using-superpowers** - Introduction to the skills system
+- **zoom-out** - Step back for broader context and a higher-level perspective on a section of code
+- **handoff** - Compact a long session into a clean resume document for a fresh agent to pick up
 
 ## Philosophy
 
