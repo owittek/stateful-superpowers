@@ -119,6 +119,10 @@ Every step must contain the actual content an engineer needs. These are **plan f
 - Exact commands with expected output
 - DRY, YAGNI, TDD, frequent commits
 
+## Terminal Commenting Phase (scope = both)
+
+If the architecture work was scoped **both** (see `superpowers:improving-architecture`), append a FINAL phase to the plan: "Comment the touched modules". Its first step resolves the module set at run time via `git diff --name-only <base>..HEAD`, then invokes `superpowers:commenting-modules` over that set. It is last so every refactor task is already done and reviewed before commenting — comments are added *after* refactoring, not interleaved. Do not add this phase for architecture-only or non-refactor plans.
+
 ## Self-Review
 
 After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
