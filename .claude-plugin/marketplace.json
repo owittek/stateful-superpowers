@@ -1,19 +1,19 @@
 {
-  "name": "superpowers-dev",
-  "description": "Development marketplace for Superpowers core skills library",
+  "name": "stateful-superpowers-dev",
+  "description": "Development marketplace for the Stateful Superpowers skills library",
   "owner": {
-    "name": "Jesse Vincent",
-    "email": "jesse@fsck.com"
+    "name": "Olivier Wittek",
+    "email": "me@wittek.xyz"
   },
   "plugins": [
     {
-      "name": "superpowers",
-      "description": "Stateful skills library for Claude Code: TDD, debugging, collaboration patterns, and a domain substrate (CONTEXT.md glossary + docs/adr decisions) feeding grilling, prototyping, architecture improvement, zoom-out, and handoff",
-      "version": "6.0.0",
+      "name": "stateful-superpowers",
+      "description": "Stateful skills library for Claude Code: TDD, debugging, collaboration patterns, and a domain substrate (CONTEXT.md glossary + docs/adr decisions) feeding grilling, prototyping, architecture improvement, zoom-out, and handoff. Based on Superpowers by Jesse Vincent.",
+      "version": "0.1.0",
       "source": "./",
       "author": {
-        "name": "Jesse Vincent",
-        "email": "jesse@fsck.com"
+        "name": "Olivier Wittek",
+        "email": "me@wittek.xyz"
       }
     }
   ]

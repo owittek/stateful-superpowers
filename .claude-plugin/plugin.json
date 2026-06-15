@@ -1,13 +1,13 @@
 {
-  "name": "superpowers",
-  "description": "Stateful skills library for Claude Code: TDD, debugging, collaboration patterns, and a domain substrate (CONTEXT.md glossary + docs/adr decisions) feeding grilling, prototyping, architecture improvement, zoom-out, and handoff",
-  "version": "6.0.0",
+  "name": "stateful-superpowers",
+  "description": "Stateful skills library for Claude Code: TDD, debugging, collaboration patterns, and a domain substrate (CONTEXT.md glossary + docs/adr decisions) feeding grilling, prototyping, architecture improvement, zoom-out, and handoff. Based on Superpowers by Jesse Vincent.",
+  "version": "0.1.0",
   "author": {
-    "name": "Jesse Vincent",
-    "email": "jesse@fsck.com"
+    "name": "Olivier Wittek",
+    "email": "me@wittek.xyz"
   },
-  "homepage": "https://github.com/obra/superpowers",
-  "repository": "https://github.com/obra/superpowers",
+  "homepage": "https://github.com/owittek/stateful-superpowers",
+  "repository": "https://github.com/owittek/stateful-superpowers",
   "license": "MIT",
   "keywords": [
     "skills",
@@ -15,6 +15,7 @@
     "debugging",
     "collaboration",
     "best-practices",
-    "workflows"
+    "workflows",
+    "stateful"
   ]
 }
