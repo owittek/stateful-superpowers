@@ -301,3 +301,11 @@ asserts a wrong bound inclusivity. Both GREEN-bar checks pass on all three.
    units, sentinel, and invariants all still captured.
 3. **RED answer-key bug to fix in the plan**, not the skill: the "exclusive `upTo`" expectation is wrong;
    `upTo` is inclusive. Future evals of this fixture should not penalize "inclusive".
+
+## Correction (post-GREEN)
+
+The revised-RED answer key was wrong on one fact: `Tier.upTo` is the **inclusive** upper edge of its band, not exclusive. Verified empirically (peak=100 prices all 100 units at tier-1 rate; only usage strictly >100 reaches tier 2). The `top <= billable` guard is a no-double-charge check, not band membership. Consequence: baseline agents who wrote "inclusive" were correct — there was **no inclusivity failure**. Future evals must not penalize "inclusive".
+
+**The one rock-solid, replicated failure** (both fixtures, fixed 3/3→0/3 by the skill) is: **implementation strategy leaking into interface/class comments.** That is the skill's load-bearing justification.
+
+**Surviving gap:** cross-module call ordering (refresh FX before `assess`) is omitted with or without the skill. It is a cross-module dependency — Stage 1's responsibility — and the GREEN test exercised only per-module Stage 2 in isolation, so it is a known limitation routed to the correct stage, not a Stage-2 defect.

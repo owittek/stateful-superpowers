@@ -41,13 +41,12 @@ The dominant failure. The caller-facing comment describes the *strategy* (how th
 
 If you *can't* state the contract without describing the implementation, the module is shallow — raise the **shallowness flag**; don't paper over it.
 
-### B. Precision asserted but not verified
-Agents state a boundary as "inclusive", a sentinel as an "error", or omit an ordering precondition — confidently, and wrong. A confident wrong precision comment is worse than none.
+### B. Cross-module preconditions and ordering get omitted
+A method commented in isolation won't mention what callers must do *around* it — refresh a rate before invoking it, call it once per cycle, reset afterward. That ordering lives across module seams, so it is easy to drop when you only look at one file. Trace the call sites; if a required sequence spans modules, it belongs in the cross-module pass (`SKILL.md` Stage 1) — flag it, don't silently omit it.
 
-Before you write any of these, **verify it against the code and the call sites**:
+While you're at it, **read precision off the code, never assume it**:
 - inclusive vs exclusive bounds (read the comparison: `<` vs `<=`),
 - what a `null`/`-1`/empty return actually *means* (trace how callers branch on it),
-- ordering/preconditions ("X must be called before Y" — read the caller's sequence),
 - invariants (what is always true of a field across its lifetime).
 
 If the code doesn't let you verify it, say so plainly rather than guessing.

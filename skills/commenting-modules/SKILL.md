@@ -1,6 +1,6 @@
 ---
 name: commenting-modules
-description: Use when adding comments to modules after a refactor, or when asked to document or comment a module, class, layer, or function. Symptoms it prevents: interface/method comments that describe how the code works instead of the caller's contract, and precision (bound inclusivity, sentinel meaning, ordering/preconditions, invariants) asserted confidently but not verified against the code.
+description: Use when adding comments to modules after a refactor, or when asked to document or comment a module, class, layer, or function. Symptoms it prevents: interface/method comments that describe how the code works instead of the caller's contract, omitted cross-module preconditions and call ordering, and precision (bounds, sentinel meaning, invariants) asserted without reading the code.
 ---
 
 # Commenting Modules
@@ -9,10 +9,12 @@ Add Ousterhout-style comments (APOSD ch. 13) and review them. **Rigid skill — 
 
 **Core principle:** comments describe what is **not obvious from the code next to them**, judged from a first-time reader.
 
-**Why this is its own step.** Capable agents already recover facts well (units, what a sentinel means, even reading call sites). Baseline testing showed they reliably fail at two things even with full information — this skill exists to stop exactly those:
+**Why this is its own step.** Capable agents already recover facts well (units, what a sentinel means, even reading call sites). Baseline testing (two fixtures) showed one failure they make reliably even with full information, and one gap that comes from commenting a file in isolation — this skill exists to stop both:
 
-1. **Implementation leaks into interface comments** — the caller-facing comment describes the strategy (data structures, loops, lazy/eager choices) instead of the contract.
-2. **Precision asserted but not verified** — a bound called "inclusive" that's exclusive, a `-1` sentinel called an "error", a missing ordering precondition. A confident wrong comment is worse than none.
+1. **Implementation leaks into interface comments** — the caller-facing comment describes the strategy (data structures, loops, lazy/eager choices) instead of the contract. This was 3/3 in every baseline; it is the load-bearing reason for the skill.
+2. **Cross-module preconditions and required call ordering get omitted** — a method commented in isolation won't mention that callers must, say, refresh a rate before invoking it. That ordering lives across module seams (Stage 1's job), so single-module writers must flag it rather than silently drop it.
+
+(Standard precision still applies — bounds, sentinel meaning, invariants — but *read it off the code*, never assume it.)
 
 Reuses the architecture glossary: `../improving-architecture/LANGUAGE.md`. Comment categories, precision-vs-intuition, worked examples, and the two failure modes in depth: `COMMENT-TYPES.md`. Review criteria: `REVIEW.md`.
 
@@ -45,7 +47,8 @@ A FRESH subagent runs `REVIEW.md` over the result, leading with the two highest-
 | Comment | Why it fails | Fix |
 |---------|--------------|-----|
 | Interface/method comment describes how it works (data structure, loop, lazy/eager strategy, internal calls) | Contaminates the abstraction — the dominant agent failure | State the caller-facing contract only; move detail inside, or raise the shallowness flag |
-| Bound / sentinel / ordering / invariant asserted without checking the code | Confident-but-wrong precision is worse than none | Verify against the operator and call sites first; if unverifiable, say so |
+| Method commented in isolation, omitting a required call ordering / precondition that lives at the call sites | Callers can't use it correctly | Trace the call sites; state the precondition, or flag it for the cross-module pass (Stage 1) |
+| Bound / sentinel / invariant asserted without checking the code | Confident-but-wrong precision is worse than none | Read it off the operator and call sites first; if unverifiable, say so |
 | Repeats the code (`// increment i`) | Reader test fails | Delete |
 | Reuses the entity's own name-words (`// the capacity` on `capacity`) | Restates the name | Replace with a fact not in the code |
 | Verb-style field comment (how it's mutated) | Mirrors code structure | Rewrite as a noun: what it represents |
