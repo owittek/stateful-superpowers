@@ -71,9 +71,9 @@ Do NOT propose interfaces yet. After the file is written, ask the user: "Which o
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, invoke `superpowers:grilling` to walk the design tree (it owns the interview + CONTEXT.md/ADR capture; the inline side-effects below are now grilling's responsibility).
+Once the user picks a candidate, invoke `superpowers:grilling` to walk the design tree — it owns the interview and the CONTEXT.md/ADR capture *during* that design-tree conversation.
 
-Side effects happen inline as decisions crystallize:
+Beyond what grilling captures in the interview, this front-end has capture moments grilling won't see — handle these inline as decisions crystallize:
 
 - **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md` — same discipline as `superpowers:grilling` (see [CONTEXT-FORMAT.md](../grilling/CONTEXT-FORMAT.md)). Create the file lazily if it doesn't exist.
 - **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
