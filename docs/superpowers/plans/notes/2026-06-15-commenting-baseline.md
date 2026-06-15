@@ -143,3 +143,78 @@ future iteration should use a *less archetypal* module — domain-specific logic
 unconventional sentinel return, an invariant that isn't implied by a famous algorithm name — where the agent
 cannot lean on prior knowledge of the pattern. The single robust failure this fixture *does* surface is the
 interface-vs-implementation boundary (pattern #1 above).
+
+---
+
+## Revised RED (harder fixture)
+
+Date: 2026-06-15 (second attempt)
+Fixture: a non-archetypal billing module, NOT a textbook algorithm. Three files:
+- `meter.ts` — the file to comment. `OverageAssessor` class + `Tier` interface. Field/return
+  units, the meaning of the `-1` return, and the refresh-before-assess ordering are all
+  **absent from this file in isolation**.
+- `billing-cycle.ts` — the only caller (`closeCycle`). Reveals the hidden facts: `meterMilliKwh`
+  (unit of `record`), `ledger.postMicroCents(charge)` (unit of the return), `fx.refresh()` before
+  `assess()`, the `charge === -1` → `scheduler.deferToNextCycle()` branch, and the once-per-cycle
+  `record → assess → reset` ordering.
+- `fx.ts` — the `FxProvider` interface (`ready()`, `rate()`).
+
+Method: same as before — fresh `general-purpose` subagents, identical prompt, NO commenting skill.
+
+**Isolation fix (important).** The first dispatch of this fixture put all three agents in ONE shared
+`/tmp/commenting-fixture/` directory. They wrote `meter.ts` concurrently and read each other's
+output (agent 3 literally said "I corrected an earlier comment that wrongly called it idempotent",
+referencing another agent's write). Those three results are contaminated and are NOT graded here.
+The run was repeated with each agent in its own isolated copy (`/tmp/cf-a`, `/tmp/cf-b`, `/tmp/cf-c`),
+each containing a pristine `meter.ts` + the two sibling files. The three graded results below are
+from that clean, isolated run.
+
+### Answer-key checklist (per agent)
+
+Legend: ✅ captured · ⚠️ partial · ❌ missed/wrong
+
+| Hidden fact (recoverable only from billing-cycle.ts) | Agent A (cf-a) | Agent B (cf-b) | Agent C (cf-c) |
+|---|---|---|---|
+| `record`/`marks` unit = **milli-kWh** | ✅ "milli-kWh in the billing-cycle caller" | ✅ "readings are milli-kWh (see closeCycle...)" | ✅ "milli-kWh" |
+| return + `Tier.rate` unit = **micro-cents** (rate = µ¢/milli-kWh) | ✅ "micro-cents, per the caller" | ✅ "the returned value is micro-cents (posted via ledger.postMicroCents)" | ✅ "micro-cents per the current caller" |
+| `-1` = **sentinel "FX unavailable, defer"**, not amount/error | ✅ "Returns **-1** as a sentinel... Callers MUST check for -1 before treating the result as money" | ✅ "Callers MUST treat -1 as 'could not assess, try again later'... not a charge of negative one" | ✅ "the caller MUST treat -1 as 'could not bill, defer' — never as a real charge" |
+| **Ordering**: FX refreshed before `assess()`; once-per-cycle, then `reset()` | ⚠️ notes caller can `refresh()` before assess (ctor doc) + lifecycle steps; does not state refresh is a hard precondition | ❌ lifecycle steps present, but no mention of `fx.refresh()` / refresh-before-assess at all | ❌ lifecycle steps present, but no mention of `fx.refresh()` ordering |
+| `Tier.upTo` exclusive cumulative watermark; `assessed` monotonic within cycle | ⚠️ "Inclusive upper bound" (calls it inclusive — wrong), but correctly explains marginal/high-water billing | ⚠️ "cumulative usage ceiling (inclusive)" (inclusive — wrong), high-water correct | ⚠️ "Inclusive upper boundary" (wrong), high-water correct |
+| Interface comment must NOT leak implementation strategy | ❌ class doc spells out peak/`Math.max`, the tier loop, the high-water algorithm | ❌ class doc spells out `Math.max(marks)`, the tier walk, the `break` | ❌ class doc spells out peak billing, the loop, the `break` |
+
+### Failure patterns observed
+
+This fixture did **NOT** produce a genuine RED failure on the facts it was designed to hide.
+
+1. **All three agents opened `billing-cycle.ts` unprompted.** The prompt's "other files are available
+   if useful" was enough; every agent cross-referenced the caller and `fx.ts` before commenting. This
+   is the opposite of the predicted failure ("commented meter.ts in isolation").
+2. **Units fully recovered (3/3 on both).** No agent guessed or omitted milli-kWh or micro-cents; all
+   traced them to `meterMilliKwh` and `postMicroCents`.
+3. **The `-1` sentinel was read correctly (3/3).** Every agent explicitly warned callers not to treat
+   `-1` as money and tied it to `closeCycle`'s defer branch.
+4. **Two real, repeatable weaknesses remain — these are the only RED signal:**
+   - **(a) Interface comments leak implementation (3/3 missed).** Every class-level doc described the
+     peak/`Math.max` strategy, the tier loop, and the `break` — implementation detail a *caller* of the
+     contract does not need. This is the same failure the first (token-bucket) fixture surfaced, so it
+     reproduces across fixtures and is the strongest skill target.
+   - **(b) Bound-inclusivity stated wrong (3/3 wrong).** All three labeled `Tier.upTo` "inclusive"
+     when the loop's `Math.min(peak, t.upTo)` + `top <= billable` makes it an **exclusive** cumulative
+     boundary. They got the *narrative* (graduated tiers) right but the *precise bound* wrong — exactly
+     the kind of declaration-comment imprecision a commenting skill should catch.
+   - **(c) Refresh-before-assess ordering weak (2/3 missed, 1/3 partial).** Only agent A hinted that the
+     caller refreshes FX before `assess()`; none stated it as a precondition. Minor, but a real gap.
+5. **Heavy verbosity again (3/3).** Large JSDoc blocks with usage walkthroughs and "things that are
+   easy to get wrong" essays — same over-commenting pattern as the first fixture.
+
+### Verdict
+
+**The baseline still does not fail in the way the Iron Law requires.** Current models, given the caller,
+reliably recover units, the sentinel, and the high-water semantics on their own. Making the facts
+"recoverable from call sites" was insufficient: the agents simply read the call sites. A genuine RED
+for `commenting-modules` cannot rest on *information the agent can recover* — it must rest on
+*judgment the agent gets wrong even with full information*. The two dimensions where all three agents
+failed **despite** reading every file are:
+  - **interface/implementation boundary** (leaking strategy into caller-facing contracts), and
+  - **declaration-comment precision** (inclusive vs. exclusive bounds).
+These — not "missing units" — are the defensible failing tests the skill should target.
