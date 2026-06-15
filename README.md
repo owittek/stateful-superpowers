@@ -199,7 +199,7 @@ already use it in another harness.
 - **using-superpowers** - Introduction to the skills system
 - **zoom-out** - Step back for broader context and a higher-level perspective on a section of code
 - **handoff** - Compact a long session into a clean resume document for a fresh agent to pick up
-- **syncing-context** - Bootstrap or re-sync a repo's CONTEXT.md glossary from its code and docs (the `uv sync` model; glossary only, never ADRs)
+- **syncing-context** - Bootstrap or re-sync a repo's CONTEXT.md glossary from its code and docs
 
 ## Philosophy
 
