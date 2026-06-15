@@ -187,6 +187,7 @@ already use it in another harness.
 - **grilling** - Relentless one-question-at-a-time design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
 - **prototype** - Build a throwaway probe to answer one design question discussion can't settle
 - **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
+- **commenting-modules** - Add Ousterhout-style interface/implementation comments as a reviewed lifecycle step
 - **writing-plans** - Detailed implementation plans
 - **executing-plans** - Batch execution with checkpoints
 - **dispatching-parallel-agents** - Concurrent subagent workflows
