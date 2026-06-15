@@ -9,7 +9,7 @@
     {
       "name": "stateful-superpowers",
       "description": "Stateful skills library for Claude Code: a self-driving brainstorm → plan → TDD → review workflow that remembers your project's language and key decisions across sessions. Based on Superpowers by Jesse Vincent and Matt Pocock's engineering skills.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "source": "./",
       "author": {
         "name": "Olivier Wittek",
