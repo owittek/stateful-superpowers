@@ -163,6 +163,13 @@ Superpowers is available in Kimi Code's plugin marketplace.
 OpenCode uses its own plugin install; install Superpowers separately even if you
 already use it in another harness.
 
+> **Note:** OpenCode installs plugins as npm packages (by package name, resolved
+> by Bun — the `name@git+…` form is a Bun git spec). This fork is not published
+> to npm, so the OpenCode install resolves the `superpowers` package from the
+> upstream `obra/superpowers` repository. **OpenCode users therefore get upstream
+> Superpowers, not this fork's stateful skills.** Use Claude Code, Codex, Cursor,
+> Gemini, Kimi, or Pi to get the fork.
+
 - Tell OpenCode:
 
   ```
