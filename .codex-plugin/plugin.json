@@ -1,6 +1,6 @@
 {
   "name": "stateful-superpowers",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Stateful skills library for Claude Code: a self-driving brainstorm → plan → TDD → review workflow that remembers your project's language and key decisions across sessions. Based on Superpowers by Jesse Vincent and Matt Pocock's engineering skills.",
   "author": {
     "name": "Olivier Wittek",
@@ -22,12 +22,13 @@
     "stateful"
   ],
   "skills": "./skills/",
+  "hooks": {},
   "interface": {
     "displayName": "Stateful Superpowers",
     "shortDescription": "Planning, TDD, debugging, and delivery workflows for coding agents",
     "longDescription": "Use Stateful Superpowers to guide agent work through brainstorming, implementation planning, test-driven development, systematic debugging, parallel execution, code review, and finish-the-branch workflows — while remembering your project's language and key decisions across sessions.",
     "developerName": "Olivier Wittek",
-    "category": "Coding",
+    "category": "Developer Tools",
     "capabilities": [
       "Interactive",
       "Read",

@@ -3,15 +3,9 @@
 Superpowers is a complete software development methodology for your coding agents, built on top of a set of composable skills and some initial instructions that make sure your agent uses them.
 
 
-## We're Hiring!
-
-We're hiring someone to help out full time with Superpowers community and code work. 
-You can read about the job at https://primeradiant.com/jobs/superpowers-community-engineer/
-If this sounds like someone you know, definitely send them our way.
-
 ## Quickstart
 
-Give your agent Superpowers: [Claude Code](#claude-code), [Antigravity](#antigravity), [Codex App](#codex-app), [Codex CLI](#codex-cli), [Cursor](#cursor), [Factory Droid](#factory-droid), [Kimi Code](#kimi-code), [OpenCode](#opencode), [Pi](#pi).
+Give your agent Superpowers: [Claude Code](#claude-code), [Antigravity](#antigravity), [Codex App](#codex-app), [Codex CLI](#codex-cli), [Cursor](#cursor), [Factory Droid](#factory-droid), [Gemini CLI](#gemini-cli), [Kimi Code](#kimi-code), [OpenCode](#opencode), [Pi](#pi).
 
 ## How it works
 
@@ -124,6 +118,20 @@ Superpowers is available via the [official Codex plugin marketplace](https://git
   droid plugin install stateful-superpowers@stateful-superpowers-dev
   ```
 
+### Gemini CLI
+
+- Install the extension:
+
+  ```bash
+  gemini extensions install https://github.com/owittek/stateful-superpowers
+  ```
+
+- Update later:
+
+  ```bash
+  gemini extensions update stateful-superpowers
+  ```
+
 ### Kimi Code
 
 Superpowers is available in Kimi Code's plugin marketplace.
@@ -211,7 +219,7 @@ The Pi package loads the Superpowers skills and a small extension that injects t
 
 **Collaboration** 
 - **brainstorming** - Socratic design refinement
-- **grilling** - Relentless one-question-at-a-time design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
+- **grilling** - Relentless round-by-round design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
 - **prototype** - Build a throwaway probe to answer one design question discussion can't settle
 - **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
 - **commenting-modules** - Add Ousterhout-style interface/implementation comments as a reviewed lifecycle step
@@ -248,6 +256,8 @@ Stateful Superpowers stands on the shoulders of giants:
 - **[Skills for Real Engineers](https://github.com/mattpocock/skills)** by [Matt Pocock](https://www.aihero.dev) — the engineering skills whose mechanics we absorbed: the grill-with-docs interview discipline (`grilling`), `improving-architecture`, `prototype`, `zoom-out`, `handoff`, and the `CONTEXT.md` glossary + `docs/adr/` domain substrate.
 
 This fork's own contribution is the synthesis — folding that stateful domain-model discipline into the Superpowers spine without disturbing its workflow — with more of our own ideas layered on as the project grows.
+
+Where each upstream was last synced from, and which divergences are deliberate: [docs/upstream-sync.md](docs/upstream-sync.md).
 
 ## Contributing
 
