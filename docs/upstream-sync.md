@@ -5,8 +5,14 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 ## obra/superpowers
 
 - Remote: `source` (`git@github.com:obra/superpowers.git`)
-- Sync point: the merge-base with `source/main` — last merged **v6.1.0** in `eec3658`
-- Process: merge `source/main`, resolve, bump the plugin version.
+- Sync point: the merge-base with `source/main` — last merged **v6.2.0** in `f588b18` (fork 0.7.0)
+- Process: **merge** `source/main`, resolve, bump the plugin version with `scripts/bump-version.sh`. Never rebase — the merge-base is what makes the next sync diffable, and `d856566` exists purely to repair it after a squash-merge lost the lineage.
+
+### Recurring conflicts — decide these deliberately
+
+- **Plugin manifests** (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`, `.kimi-plugin/`, `package.json`, `gemini-extension.json`): keep the fork's name/description/author, take upstream's structural changes, then bump to the fork's own version line (0.x, not upstream's 6.x).
+- **README install sections**: every install target points at `owittek/stateful-superpowers`. Harnesses that can only resolve upstream (GitHub Copilot CLI, OpenCode's npm install) are called out or dropped rather than silently shipping upstream to fork users.
+- **`brainstorming`'s interview style**: upstream says "one question at a time" in the intro, the checklist, and the body. The fork routes the interview through `superpowers:grilling`'s **frontier rounds** instead. A mechanical merge resolution will revert this — keep ours.
 
 ## mattpocock/skills
 
