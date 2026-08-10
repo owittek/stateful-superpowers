@@ -22,11 +22,11 @@ Reuses the architecture glossary: `../improving-architecture/LANGUAGE.md`. Comme
 
 ### Stage 0 — Resolve & confirm the target set (entry-aware)
 - **From a refactor (architecture / both):** seed from `git diff --name-only <base>..HEAD` — comment exactly what changed. Optionally suggest adjacent modules.
-- **Commenting only:** the user gives a *direction* ("this layer", named modules). Use the Agent tool with `subagent_type=Explore` to resolve it to a concrete candidate set.
+- **Commenting only:** the user gives a *direction* ("this layer", named modules). Dispatch a subagent — a read-only exploration agent if your harness has one — to resolve it to a concrete candidate set.
 - Present the set; get confirmation before writing anything.
 
 ### Stage 1 — Cross-module exploration (before any writing)
-Use the Agent tool with `subagent_type=Explore` to trace usage/dependencies across the confirmed set. For each decision spanning module seams, find the **natural focal point** (the declaration/seam every dependent path routes through). The cross-module comment goes there; thin pointers elsewhere. Most runs find none. No central notes file.
+Dispatch a subagent — a read-only exploration agent if your harness has one — to trace usage/dependencies across the confirmed set. For each decision spanning module seams, find the **natural focal point** (the declaration/seam every dependent path routes through). The cross-module comment goes there; thin pointers elsewhere. Most runs find none. No central notes file.
 
 ### Stage 2 — Per-module comment-writing subagents
 One subagent per module. **Dispatch each against an isolated copy of the target** (a shared working dir lets agents read each other's edits and cross-contaminate). Each writes the categories in `COMMENT-TYPES.md` that apply, following the language's doc-tool conventions (Javadoc/godoc/JSDoc/rustdoc/Doxygen), and:

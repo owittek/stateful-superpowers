@@ -211,7 +211,7 @@ The Pi package loads the Superpowers skills and a small extension that injects t
 
 **Collaboration** 
 - **brainstorming** - Socratic design refinement
-- **grilling** - Relentless one-question-at-a-time design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
+- **grilling** - Relentless round-by-round design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
 - **prototype** - Build a throwaway probe to answer one design question discussion can't settle
 - **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
 - **commenting-modules** - Add Ousterhout-style interface/implementation comments as a reviewed lifecycle step
@@ -248,6 +248,8 @@ Stateful Superpowers stands on the shoulders of giants:
 - **[Skills for Real Engineers](https://github.com/mattpocock/skills)** by [Matt Pocock](https://www.aihero.dev) — the engineering skills whose mechanics we absorbed: the grill-with-docs interview discipline (`grilling`), `improving-architecture`, `prototype`, `zoom-out`, `handoff`, and the `CONTEXT.md` glossary + `docs/adr/` domain substrate.
 
 This fork's own contribution is the synthesis — folding that stateful domain-model discipline into the Superpowers spine without disturbing its workflow — with more of our own ideas layered on as the project grows.
+
+Where each upstream was last synced from, and which divergences are deliberate: [docs/upstream-sync.md](docs/upstream-sync.md).
 
 ## Contributing
 

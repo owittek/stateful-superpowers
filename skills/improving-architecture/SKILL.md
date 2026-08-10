@@ -42,9 +42,14 @@ Before exploring, ask the user — one question, recommend **both**:
 
 ### 1. Explore
 
+**Scope before you scan — YAGNI.** Deepening a module pays off by making future changes to it easier, so put extra weight on the parts of the codebase that have recently changed. Decide *where* to look before you look:
+
+- If the user named a direction — a module, a subsystem, a pain point — take it, and skip the inference below.
+- Otherwise, walk back a good stretch of the commit history (`git log --oneline`) to find the codebase's hot spots — the files and areas that keep coming up — and let those paths pull your attention first. If the changes are scattered with no clear hot spot, widen the net.
+
 Read the project's domain glossary and any ADRs in the area you're touching first.
 
-Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
+Then dispatch a subagent to walk the codebase — a read-only exploration agent if your harness has one. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?
@@ -81,7 +86,7 @@ Do NOT propose interfaces yet. After the file is written, ask the user: "Which o
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, invoke `superpowers:grilling` to walk the design tree — it owns the interview and the CONTEXT.md/ADR capture *during* that design-tree conversation.
+Once the user picks a candidate, invoke `superpowers:grilling` to walk the decision tree — it owns the interview and the CONTEXT.md/ADR capture *during* that decision-tree conversation.
 
 Beyond what grilling captures in the interview, this front-end has capture moments grilling won't see — handle these inline as decisions crystallize:
 
