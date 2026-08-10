@@ -296,7 +296,10 @@ case "$FORMAT" in
     (
       cd "$STAGE"
       rm -f "$OUTPUT"
-      COPYFILE_DISABLE=1 zip -X -q - -@ <"$ARCHIVE_LIST" >"$OUTPUT"
+      # ZIP stores DOS timestamps in local time, so package under TZ=UTC —
+      # otherwise the entry times (and the archive checksum) depend on the
+      # packager's timezone.
+      COPYFILE_DISABLE=1 TZ=UTC zip -X -q - -@ <"$ARCHIVE_LIST" >"$OUTPUT"
     )
     ;;
   tar.gz)
