@@ -27,6 +27,7 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 |---|---|
 | `grilling` | `productivity/grilling` + `engineering/grill-with-docs` + `engineering/domain-modeling` (merged into one skill here) |
 | `improving-architecture` | `engineering/improve-codebase-architecture` + `engineering/codebase-design` |
+| `designing-modules` | `engineering/improve-codebase-architecture` + `engineering/codebase-design` (the design half, split out of `improving-architecture` — see divergences) |
 | `commenting-modules` | `engineering/codebase-design` (deep-module vocabulary) |
 | `syncing-context` | `engineering/domain-modeling` (glossary half) |
 | `prototype` | `engineering/prototype` |
@@ -48,6 +49,7 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 - **PRD umbrellas are kept.** Upstream renamed its PRD flow to `to-spec`; this fork's `brainstorming` still writes a PRD umbrella for multi-feature initiatives.
 - **`grilling` owns domain capture.** Upstream splits `grilling` / `domain-modeling` / `grill-me` / `grill-with-docs`; the fork folds them into one skill with the CONTEXT.md + ADR discipline inline.
 - **Longer skill descriptions.** Upstream trimmed its descriptions; the fork's carry routing detail (which skill invokes which) on purpose.
+- **`improving-architecture` is split into discovery and design.** The design half — `LANGUAGE.md`, `DEEPENING.md`, `INTERFACE-DESIGN.md` and the CONTEXT.md/ADR capture moments — lives in `designing-modules`, a shared engine `brainstorming` also calls. Upstream keeps it all in one skill. When diffing, compare upstream's `improve-codebase-architecture` against **both** fork skills; the design content was moved, not dropped.
 
 ### Upstream skills not adopted (as of `84fdeff`)
 

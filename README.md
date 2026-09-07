@@ -222,6 +222,7 @@ The Pi package loads the Superpowers skills and a small extension that injects t
 - **grilling** - Relentless round-by-round design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
 - **prototype** - Build a throwaway probe to answer one design question discussion can't settle
 - **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
+- **designing-modules** - Design module structure, interfaces and seams; the shared engine behind brainstorming's architecture pass and improving-architecture's deepening
 - **commenting-modules** - Add Ousterhout-style interface/implementation comments as a reviewed lifecycle step
 - **writing-plans** - Detailed implementation plans
 - **executing-plans** - Batch execution with checkpoints
