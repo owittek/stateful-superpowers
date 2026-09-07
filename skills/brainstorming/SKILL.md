@@ -26,11 +26,12 @@ You MUST create a task for each of these items and complete them in order:
 3. **Grill the idea** — invoke `superpowers:grilling` to interview down the decision tree (relentless round-by-round Q&A with recommended answers, challenge against CONTEXT.md/ADRs, capture resolved terms/decisions inline). Resume here with the resolved design.
    - If a resolved design hinges on a question discussion can't settle, `superpowers:prototype` may be invoked as a throwaway, subagent-isolated probe (it does not bypass the HARD-GATE — see prototype guardrails).
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
-7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
-8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+5. **Architecture pass (optional)** — once the approach is chosen, if it introduces 2+ new modules or lands in an existing codebase with seams it has to fit, offer `superpowers:designing-modules` in its own message. It returns a module/interface/seam structure that becomes the design's Architecture section. See the Architecture Pass section below.
+6. **Present design** — in sections scaled to their complexity, get user approval after each section
+7. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+9. **User reviews written spec** — ask user to review the spec file before proceeding
+10. **Transition to implementation** — invoke writing-plans skill to create implementation plan
 
 ## Process Flow
 
@@ -39,6 +40,7 @@ digraph brainstorming {
     "Explore project context" [shape=box];
     "Grill the idea\n(superpowers:grilling)" [shape=box];
     "Propose 2-3 approaches" [shape=box];
+    "Architecture pass?\n(superpowers:designing-modules)" [shape=diamond];
     "Present design sections" [shape=box];
     "User approves design?" [shape=diamond];
     "Write design doc" [shape=box];
@@ -48,7 +50,9 @@ digraph brainstorming {
 
     "Explore project context" -> "Grill the idea\n(superpowers:grilling)";
     "Grill the idea\n(superpowers:grilling)" -> "Propose 2-3 approaches";
-    "Propose 2-3 approaches" -> "Present design sections";
+    "Propose 2-3 approaches" -> "Architecture pass?\n(superpowers:designing-modules)";
+    "Architecture pass?\n(superpowers:designing-modules)" -> "Present design sections" [label="offered & declined, or trigger never fired"];
+    "Architecture pass?\n(superpowers:designing-modules)" -> "Present design sections" [label="accepted → Architecture section"];
     "Present design sections" -> "User approves design?";
     "User approves design?" -> "Present design sections" [label="no, revise"];
     "User approves design?" -> "Write design doc" [label="yes"];
@@ -129,6 +133,50 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 - Invoke the writing-plans skill to create a detailed implementation plan
 - Do NOT invoke any other skill. writing-plans is the next step.
+
+## Architecture Pass
+
+`superpowers:designing-modules` works out module structure, interfaces and
+seams. Like the visual companion, it is a tool, not a mode — offering it does
+not commit the rest of the design to architecture-speak.
+
+**When to offer.** After the approach is chosen (checklist item 4), when either
+is true:
+
+- the design introduces **2+ new modules**, or
+- it lands in an **existing codebase with seams it has to fit**.
+
+If neither holds, never mention it. A single-function utility does not need a
+seam analysis.
+
+**The offer is its own message.** Only the offer — no clarifying question, no
+summary alongside it:
+
+> "Before I write this up — want me to do an architecture pass first? I'd work
+> out the module structure, what each interface hides, and where the seams go,
+> and it becomes the Architecture section of the spec. Worth it here because
+> \<reason\>; skip it if you'd rather I just write the design."
+
+**Fill in `<reason>` with the specific trigger that fired** — "this adds four
+new modules that all touch the session store," not "it seems complex." Naming
+the trigger is what stops the offer degrading into a reflex on every
+brainstorm. If you cannot name one, the trigger did not fire: don't offer.
+
+If they decline, continue and don't offer again unless they raise it.
+
+**Don't stack offers.** If you have just offered the visual companion, or the
+user declined it a moment ago, let a beat pass first. Two out-of-band offers
+back to back read as nagging, and the second one gets a reflex "no" that has
+nothing to do with its merits.
+
+**Why after the approach, not before.** Approaches are usually product-level —
+"SSE vs polling." Designing modules for three still-live approaches costs three
+times as much and discards two thirds of it.
+
+**What comes back.** A module/interface/seam table for the chosen approach. It
+becomes the Architecture section of the design you present at item 6 and of the
+spec you write at item 7. If the visual companion is already running, its
+structure diagram belongs in the browser tab; otherwise Mermaid in the spec.
 
 ## Visual Companion
 
