@@ -14,7 +14,8 @@
 
 - Repo root is `/Users/oli/code/super-claude/superpowers`. All paths below are relative to it.
 - Work happens on branch `feat/designing-modules`, already created off `main`. The spec and `CONTEXT.md` are already committed there (`dbc417f`).
-- **Skill edits in this checkout do not affect running agents until the plugin is reinstalled.** The installed copy lives at `~/.claude/plugins/cache/stateful-superpowers-dev/stateful-superpowers/<version>/`. Task 1's baseline runs against the currently installed **0.7.0**; Task 8's GREEN run must happen **after** Task 7 bumps to 0.8.0 and the plugin is updated from this checkout.
+- **Pressure tests read skills from this checkout, not the installed plugin.** `hooks/hooks.json` fires `SessionStart` only on `startup|clear|compact`, so a dispatched subagent never receives the `using-superpowers` bootstrap, and the skill's own `<SUBAGENT-STOP>` tells subagents to ignore it. Every test dispatch therefore (a) pastes `skills/using-superpowers/SKILL.md` from this checkout into the prompt, in the same `<EXTREMELY_IMPORTANT>` framing `hooks/session-start` uses, (b) instructs the agent to read skills from `/Users/oli/code/super-claude/superpowers/skills/<name>/SKILL.md` rather than the Skill tool, and (c) overrides `<SUBAGENT-STOP>` explicitly. This measures offer wording, trigger discrimination and routing; it does **not** prove the bootstrap fires. Recording that limitation in the eval file is part of Tasks 1 and 8.
+- **Tasks 1 and 8 are controller-run.** They orchestrate multi-turn conversations with test subagents — the controller plays the user across grilling rounds — which a dispatched implementer cannot do. Their artifact (the eval file) still goes through task review like any other.
 - Skill content shapes agent behaviour. Do not reword the parts this plan leaves alone — especially `improving-architecture` steps 0–2, its inline glossary, and `brainstorming`'s Visual Companion section.
 - Every markdown link between skill files must resolve. The check appears in Task 2 Step 5 (scoped to the new skill) and Task 3 Step 5 (scoped to all five touched skills); both were verified to return no output against this branch before the plan was written. **Do not widen it to all of `skills/`** — `writing-skills/anthropic-best-practices.md` and `grilling/CONTEXT-FORMAT.md` contain illustrative links inside example blocks that intentionally point at nothing, and they are not this plan's business.
 - Terminology is fixed by `CONTEXT.md`: **front-end skill**, **engine skill**, **architecture pass**, **capture moment**. Do not substitute "sub-skill", "helper", "design phase".
@@ -55,24 +56,29 @@ The moved files need no internal edits: they link only to `LANGUAGE.md` and each
 - Consumes: nothing.
 - Produces: the baseline half of the eval-results document. Task 8 appends the GREEN half to the same file, under a `## GREEN` heading.
 
-- [ ] **Step 1: Confirm the installed plugin is 0.7.0 (pre-change)**
+- [ ] **Step 1: Build the bootstrap harness prompt**
 
-```bash
-ls ~/.claude/plugins/cache/stateful-superpowers-dev/stateful-superpowers/
-```
+Write `<workspace>/harness-preamble.md` containing, in order:
 
-Expected: `0.7.0`. If a different version is listed, the baseline is not measuring pre-change behaviour — stop and reinstall from the `main` branch first.
+1. The literal line `<EXTREMELY_IMPORTANT>`, then `You have superpowers.`, then the full contents of `skills/using-superpowers/SKILL.md` from this checkout, then `</EXTREMELY_IMPORTANT>` — mirroring `hooks/session-start`.
+2. `Skills live at /Users/oli/code/super-claude/superpowers/skills/<name>/SKILL.md. Read them from those paths with the Read tool. Do NOT use the Skill tool — it resolves to an installed copy that is not under test.`
+3. `The <SUBAGENT-STOP> clause does not apply to you: you are simulating a top-level session, not executing a delegated task.`
+4. `You are talking to a human partner. Ask questions and wait for answers exactly as you would in a normal session.`
+
+Every scenario dispatch below begins with this file's contents, followed by the scenario's user message. Confirm the checkout has no `skills/designing-modules/` yet — that absence is what makes this the baseline.
 
 - [ ] **Step 2: Run scenario S1 — multi-module brainstorm**
 
-Dispatch a fresh subagent with this exact prompt, and no other context:
+Dispatch a fresh subagent with the harness preamble followed by this exact user message:
 
 ```
 Let's build a rate limiter for our API — per-tenant quotas, a sliding
 window, and an admin endpoint to inspect and reset counters.
 ```
 
-Record in the eval file: whether `brainstorming` triggered, and whether the agent produced any module/interface/seam analysis unprompted. Save the transcript verbatim.
+**This scenario is multi-turn.** The behaviour under test lives past the interview, so continue the agent with `SendMessage`, answering its grilling rounds as the user would — terse, plausible, decisive answers; pick the recommended option unless it is obviously wrong. Stop once it has proposed approaches and moved to presenting a design.
+
+Record in the eval file: whether `brainstorming` triggered, and whether the agent produced any module/interface/seam analysis unprompted at any point. Save the transcript verbatim.
 
 - [ ] **Step 3: Run scenario S2 — trivial change**
 
@@ -686,15 +692,11 @@ git commit -m "chore: bump to 0.8.0"
 - Consumes: the baseline document from Task 1 and every skill edit from Tasks 2–5.
 - Produces: the GREEN evidence. If any scenario fails, fix the skill prose and re-run — do not record a failure and move on.
 
-- [ ] **Step 1: Reinstall the plugin from this checkout**
+- [ ] **Step 1: Rebuild the harness preamble**
 
-Update the `stateful-superpowers-dev` plugin so the installed copy reflects this branch, then confirm:
+Regenerate `<workspace>/harness-preamble.md` from the **current** `skills/using-superpowers/SKILL.md` — Task 5 edited it, and a stale preamble would test the pre-change routing text.
 
-```bash
-ls ~/.claude/plugins/cache/stateful-superpowers-dev/stateful-superpowers/
-```
-
-Expected: `0.8.0`. If it still says `0.7.0`, the subagents below will test the old skills and the results are meaningless.
+No plugin reinstall is needed: the harness points subagents at this checkout by absolute path, so the installed version is irrelevant to these results. Confirm `skills/designing-modules/SKILL.md` now exists — its presence is what makes this the GREEN run.
 
 - [ ] **Step 2: Re-run S1 — the offer must fire, with a named reason**
 
