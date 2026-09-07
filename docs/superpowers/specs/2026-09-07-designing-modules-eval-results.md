@@ -173,9 +173,9 @@ rather than the vocabulary being cargo-culted:
   the grilling answers already pinned down each interface shape." Step 4's
   restraint held rather than firing reflexively.
 
-**Contrast with baseline.** At baseline, this same prompt carried through this
-same point in the process produced a request-flow narrative and no modules at
-all. The delta is the whole point of the change.
+**Contrast with baseline.** At baseline, the same prompt at this same point
+produced a request-flow narrative and no modules at all. The delta is the whole
+point of the change.
 
 ### S2 — trivial change (restraint control)
 
@@ -272,3 +272,28 @@ The method's limit stated at the top still applies: these runs prove the skills'
 instructions are followable and their triggers discriminate. They do not prove the
 `SessionStart` bootstrap fires, which is unchanged by this work and covered by
 `CLAUDE.md`'s own acceptance test.
+
+## Known gaps for the next eval round
+
+Recorded here rather than lost with the scratch workspace. Both were surfaced by
+the final whole-branch review, judged real, and deliberately deferred.
+
+1. **The plan boundary is untested.** No scenario checks that `writing-plans`
+   actually consumes an Architecture section. The design spec calls silent
+   discard at that boundary "the failure mode that makes the whole feature
+   pointless," so this is the most valuable scenario to add next: run S1 through
+   to plan-writing and confirm the file structure follows the modules the pass
+   named, rather than being re-derived.
+2. **The refactor path gets no adopt-the-structure instruction.**
+   `writing-plans`' new bullet is conditioned on the spec *having* an
+   Architecture section. On `improving-architecture → designing-modules →
+   writing-plans` there is no spec file — the structure exists only in the
+   conversation — so the bullet is a no-op there. Not a regression (it matches
+   pre-change behaviour) and outside what this spec scoped, but it is an
+   asymmetry now that both front-ends feed the same engine.
+
+One shipped clause is also untested by these runs: the sentence in
+`designing-modules` step 4 reconciling the design-it-twice offer with
+`brainstorming`'s stacking rule was added *after* the GREEN run, in response to
+the final review. It resolves a contradiction the evals never exercised, because
+S1's agent declined design-it-twice on its own.
