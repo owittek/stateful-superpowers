@@ -91,7 +91,10 @@ you can see two defensible answers — and offer it:
 
 On yes, follow [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md). On no, or when no
 seam is genuinely contested, skip this step. Don't manufacture a contest to
-justify the offer.
+justify the offer. This offer sits inside an architecture pass the caller
+already accepted, so it is not one of the out-of-band offers
+`superpowers:brainstorming` limits — but it is still a question, so skip it
+unless the seam is genuinely contested.
 
 ### 5. Hand back
 

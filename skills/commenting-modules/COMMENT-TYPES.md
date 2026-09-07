@@ -1,6 +1,6 @@
 # Comment Types
 
-Reuses the architecture glossary (`../improving-architecture/LANGUAGE.md`): **Interface** = everything a caller must know; **Implementation** = what's inside. Ousterhout's interface-vs-implementation comment split maps directly onto those.
+Reuses the architecture glossary (`../designing-modules/LANGUAGE.md`): **Interface** = everything a caller must know; **Implementation** = what's inside. Ousterhout's interface-vs-implementation comment split maps directly onto those.
 
 **Guiding principle:** comments describe what is *not obvious from the code next to them*. "Obvious" is judged from a first-time reader, not the author.
 

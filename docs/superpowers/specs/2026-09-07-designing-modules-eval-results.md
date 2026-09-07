@@ -23,7 +23,7 @@ The controller played the human partner across turns. Baseline ran against the
 checkout before `skills/designing-modules/` existed — verified before the runs
 (`ls skills/ | grep -c designing-modules` → `0`); GREEN runs after.
 
-**Transcripts.** Every turn of every scenario is recorded verbatim in
+**Transcripts.** The load-bearing turns of every scenario are recorded verbatim in
 [2026-09-07-designing-modules-eval-transcripts.md](2026-09-07-designing-modules-eval-transcripts.md),
 so each claim below is checkable rather than taken on faith. The underlying
 JSONL session transcripts (tool calls and file reads) are harness scratch and
@@ -173,9 +173,9 @@ rather than the vocabulary being cargo-culted:
   the grilling answers already pinned down each interface shape." Step 4's
   restraint held rather than firing reflexively.
 
-**Contrast with baseline.** The same prompt, four turns earlier in the same
-process, produced a request-flow narrative and no modules at all. The delta is
-the whole point of the change.
+**Contrast with baseline.** At baseline, this same prompt carried through this
+same point in the process produced a request-flow narrative and no modules at
+all. The delta is the whole point of the change.
 
 ### S2 — trivial change (restraint control)
 
