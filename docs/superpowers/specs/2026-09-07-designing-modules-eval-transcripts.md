@@ -258,3 +258,149 @@ bootstrap's intent table ("Restructure existing code, behavior preserved
 (refactor)"), explicitly not through `brainstorming`.
 
 **Run ended here** — routing was the observation point, and it is visible in turn 1.
+
+---
+
+# GREEN transcripts
+
+**What is recorded here.** The baseline section above records every turn. For
+GREEN the decisive turns are recorded verbatim — the offers, the architecture
+section, and the messages that had to stay clean — while the grilling rounds are
+summarised by question count. The grilling is not the behaviour under test and
+reproduced the baseline's shape; abridging it is noted here rather than passed
+off as complete.
+
+## S1 — multi-module brainstorm (GREEN)
+
+Turns 1-3 abridged: `brainstorming` → `grilling`, 12 questions across 2 rounds,
+then three approaches proposed for atomic check-and-increment across 3 replicas
+(Lua script / MULTI-EXEC / off-the-shelf library), Lua recommended. Controller
+answered each round and chose approach A.
+
+### Agent (turn 4) — the offer, complete message
+
+> Before I write this up — want me to do an architecture pass first? I'd work out the module structure, what each interface hides, and where the seams go, and it becomes the Architecture section of the spec. Worth it here because this adds ~4 new modules (rate-limit middleware, the Redis-backed counter/Lua store, quota resolution, admin controller) that all touch Redis shared with session storage and the tenant record, plus have to slot into the existing Express chain and admin RBAC without disturbing either; skip it if you'd rather I just write the design.
+
+Nothing else was in that message.
+
+### User (turn 5)
+
+> Yes, do the architecture pass.
+
+### Agent (turn 5) — the Architecture section
+
+> Abutting code I'd check (not exploring, per your framing): the existing Redis client wrapper (sessions already use it — Store should take that client as a dependency, not open its own connection), the tenant repository/model (for the ceiling field), the admin router + RBAC middleware, and whatever logger already exists for audit-style entries. Assuming all four already exist as reusable modules; Store/Resolver/Controller compose on top of them rather than reinventing.
+>
+> **Architecture section:**
+>
+> | Module | Interface | Seam | Depth rationale | Test surface |
+> |---|---|---|---|---|
+> | Rate Limit Middleware | Express `(req,res,next)`: reads `req.tenantId`, calls `RateLimiter.evaluate`, sets `X-RateLimit-*`, calls `next()` or 429+Retry-After | HTTP, existing Express chain, after auth | Deliberately shallow — pure HTTP↔decision translation, nothing to hide | Route test (supertest) against a fake RateLimiter |
+> | RateLimiter (core) | `evaluate(tenantId): Promise<{allowed, limit, remaining, resetAt}>` | In-process, between Middleware and {Resolver, Store} | Deep: owns "what allowed means" — composes ceiling + counter-consume so that composition isn't reimplemented per caller | Direct unit test, no HTTP — fake Resolver + fake Store |
+> | Tenant Quota Resolver | `getCeiling(tenantId): Promise<number>` | Sits on the existing tenant repository | Hides the "unset→system default" fallback rule | Unit test against existing tenant-repo test double |
+> | Rate Limit Store | `consume(tenantId, ceiling, windowSec)`, `peek(...)`, `reset(tenantId)` | Remote-but-owned (Redis, shared w/ sessions); port + 2 adapters: production Lua-script adapter, in-memory adapter for tests | Deep: hides the Lua script, key/TTL scheme, two-bucket weighted math, use of Redis server time (avoids clock skew across the 3 replicas), fail-open-on-error | Unit tests vs in-memory adapter; one integration test vs real Redis |
+> | Admin Rate Limit Controller | GET inspect / POST reset on the existing admin router, existing RBAC middleware | HTTP, admin router | Shallow by design — HTTP↔(Resolver+Store) plus the reset audit-log call | Route test (supertest) with fake Resolver/Store |
+>
+> ```mermaid
+> graph LR
+>   MW[Rate Limit Middleware] --> RL[RateLimiter]
+>   RL --> RS[Tenant Quota Resolver]
+>   RL --> ST[Rate Limit Store]
+>   AC[Admin Rate Limit Controller] --> RS
+>   AC --> ST
+>   ST -.Lua adapter.-> REDIS[(Redis)]
+>   RS -.-> TDB[(Tenant record)]
+> ```
+>
+> **Deletion test, RateLimiter core (borderline — single caller today):** if folded into Middleware, the "allowed" decision becomes untestable without mocking Express req/res, and if a second entry point ever needs the same check (internal service call, future gateway) it'd reimplement the composition. Keeping it separate costs one extra module for one extra seam of testability — worth it.
+>
+> Skipping the "design it twice" offer — no seam here is genuinely contested; the grilling answers (algorithm, storage, fail-open, scope) already pinned down each interface shape.
+>
+> Does this structure look right?
+
+## S2 — trivial change (GREEN)
+
+Turn 1 abridged: `brainstorming` → `grilling`, 4 questions (version source,
+aliases, output format, short-circuit behaviour). Controller answered and named
+commander as the parser.
+
+### Agent (turn 2) — the design
+
+> Noted. On commander: it ships built-in version handling via `program.version()`, default short flag is `-V` (capital), not `-v`. To get your answers exactly, pass custom flags: `program.version(pkg.version, '-v, --version')`. That's both aliases, bare output, short-circuit exit 0 — all free, no hand-rolled parsing needed.
+>
+> One implementation detail, not a decision for you: package.json path must resolve relative to the module file, not cwd, or it breaks when installed globally / invoked from elsewhere. Will use `createRequire(import.meta.url)` (ESM) or plain `require` (CJS) — whichever the codebase actually uses, confirming when I look at real files.
+>
+> Frontier's closed. Design:
+>
+> - `program.version(pkg.version, '-v, --version')`, wired into commander setup before `.parse()`.
+> - `pkg` loaded from package.json, path resolved relative to source, not cwd.
+> - No new files. Maybe one smoke test: `cli -v`/`cli --version` prints version, exits 0.
+>
+> Write this up as a spec first, or skip straight to implementation given the size?
+
+The architecture pass is not mentioned anywhere in either turn.
+
+## S3 — refactor routing (GREEN)
+
+### Agent (turn 1), complete
+
+> Using superpowers:improving-architecture to find deepening opportunities in the payment module.
+>
+> Scope: architecture only, commenting only, or both (recommended — refactor, then comment what changed)?
+
+Its closing report confirmed: first skill invoked `superpowers:improving-architecture`,
+routed per the intent table ("restructure existing code, behavior preserved"),
+explicitly not `brainstorming` and not `systematic-debugging`.
+
+## S4 — stacked offers (GREEN)
+
+Turn 1 abridged: `brainstorming` → `grilling`, 7 questions, no offers. The
+controller's turn-2 reply answered them and deliberately seeded a layout
+uncertainty: *"One thing I'm unsure about: how the timeline and the health panel
+should sit together on the page. Not sure whether they stack vertically or sit
+side by side."*
+
+### Agent (turn 2) — visual companion offered, complete message
+
+> This next part might be easier if I show you — I can put together mockups, diagrams, and comparisons in a browser tab as we go. It's still new and can be token-intensive. Want me to? I'll open it for you.
+
+### User (turn 3)
+
+> No thanks, let's stay in the terminal.
+>
+> Carry on.
+
+### Agent (turn 3) — the message the stacking rule governs
+
+This is the slot the rule forbids an offer in. It contained none:
+
+> Layout: stack vertically. Timeline needs full width for a time axis; side-by-side would cramp both. Health panel below, as a grid of 18 tiles (service name + status color) — scans faster than a list at that count.
+>
+> ```
+> ┌───────────────────────────────────────┐
+> │  Recent Deploys — timeline, full width │
+> │  ●──●────●──●───●──────●──●  (time →)  │
+> ├───────────────────────────────────────┤
+> │  Service Health — grid, 18 tiles       │
+> │  [svc-a][svc-b][svc-c][svc-d] ...      │
+> └───────────────────────────────────────┘
+> ```
+>
+> That unlocks a question round 1 skipped: where does rollback actually live.
+
+…followed by questions Q8-Q12. No architecture-pass offer.
+
+Turns 4-6 abridged: grilling rounds 3-4 (8 further questions), then three
+approaches for backend aggregation (backend-owned poller / direct passthrough /
+short-TTL cache). At turn 6 the agent corrected the controller's own suggestion —
+that Redis gives shared *storage*, not shared *execution*, so all 3 pods would
+still poll — and proposed a per-tick `SET key NX EX 15` lock instead.
+
+### Agent (turn 7) — architecture pass offered, complete message
+
+Four turns after the declined companion offer:
+
+> Before I write this up — want me to do an architecture pass first? I'd work out the module structure, what each interface hides, and where the seams go, and it becomes the Architecture section of the spec. Worth it here because this is five-plus new pieces (ArgoCD client, Prometheus client, poller+lock+snapshot writer, REST endpoints, rollback/audit write path) that all have to share the Redis lock/snapshot cleanly and plug into your existing auth and audit conventions without leaking ArgoCD/Prometheus specifics into the frontend contract; skip it if you'd rather I just write the design.
+
+The run ended here — both offers had appeared, separated, which is the
+observation point.
