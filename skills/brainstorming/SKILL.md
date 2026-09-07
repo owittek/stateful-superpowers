@@ -26,7 +26,7 @@ You MUST create a task for each of these items and complete them in order:
 3. **Grill the idea** — invoke `superpowers:grilling` to interview down the decision tree (relentless round-by-round Q&A with recommended answers, challenge against CONTEXT.md/ADRs, capture resolved terms/decisions inline). Resume here with the resolved design.
    - If a resolved design hinges on a question discussion can't settle, `superpowers:prototype` may be invoked as a throwaway, subagent-isolated probe (it does not bypass the HARD-GATE — see prototype guardrails).
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Architecture pass (optional)** — once the approach is chosen, if it introduces 2+ new modules or lands in an existing codebase with seams it has to fit, offer `superpowers:designing-modules` in its own message. It returns a module/interface/seam structure that becomes the design's Architecture section. See the Architecture Pass section below.
+5. **Architecture pass (optional)** — once the approach is chosen, if it introduces 2+ new modules or lands in an existing codebase with seams it has to fit, offer `superpowers:designing-modules` in its own message. If neither holds, never mention it. It returns a module/interface/seam structure that becomes the design's Architecture section. See the Architecture Pass section below.
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
 7. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
 8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
@@ -157,17 +157,11 @@ summary alongside it:
 > and it becomes the Architecture section of the spec. Worth it here because
 > \<reason\>; skip it if you'd rather I just write the design."
 
-**Fill in `<reason>` with the specific trigger that fired** — "this adds four
-new modules that all touch the session store," not "it seems complex." Naming
-the trigger is what stops the offer degrading into a reflex on every
-brainstorm. If you cannot name one, the trigger did not fire: don't offer.
+**Fill in `\<reason\>` with the specific coupling or seam that fired the trigger** — "this adds four new modules that all touch the session store," not "it seems complex," and not a bare module count. Naming what actually couples is what stops the offer degrading into a reflex on every brainstorm. If you cannot name one, the trigger did not fire: don't offer.
 
 If they decline, continue and don't offer again unless they raise it.
 
-**Don't stack offers.** If you have just offered the visual companion, or the
-user declined it a moment ago, let a beat pass first. Two out-of-band offers
-back to back read as nagging, and the second one gets a reflex "no" that has
-nothing to do with its merits.
+**Don't stack offers.** Never offer this in the message immediately after a visual-companion offer — wait until the user has replied to something else first. And never put two out-of-band yes/no questions to the user before the design is presented. Two offers back to back read as nagging, and the second gets a reflex "no" that has nothing to do with its merits.
 
 **Why after the approach, not before.** Approaches are usually product-level —
 "SSE vs polling." Designing modules for three still-live approaches costs three

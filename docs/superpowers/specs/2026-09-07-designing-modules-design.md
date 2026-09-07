@@ -196,9 +196,14 @@ offer, no re-offer if declined:
 > and it becomes the Architecture section of the spec. Worth it here because
 > \<reason\>; skip it if you'd rather I just write the design."*
 
-The `because <reason>` slot is load-bearing: it forces the agent to name the
-specific trigger that fired, which stops the offer degrading into a reflex on
-every brainstorm.
+The `because \<reason\>` slot is load-bearing: it forces the agent to name the
+specific coupling or seam that fired the trigger — not a bare trigger name or
+module count — which stops the offer degrading into a reflex on every
+brainstorm.
+
+*(Wording tightened after the Task 4 review: the stacking rule needed to be
+testable, and the reason slot needed to name coupling, not just a trigger. See
+`skills/brainstorming/SKILL.md`.)*
 
 The scope question `improving-architecture` asks up front (architecture only /
 commenting only / both) is **not** inherited. New modules get their comments as

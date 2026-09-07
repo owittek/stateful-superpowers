@@ -436,8 +436,10 @@ The highest-risk task: `brainstorming` now carries two just-in-time offers compe
 In the `## Checklist` block, insert after item 4 (`**Propose 2-3 approaches**`) and renumber the rest so the list runs 1–10:
 
 ```markdown
-5. **Architecture pass (optional)** — once the approach is chosen, if it introduces 2+ new modules or lands in an existing codebase with seams it has to fit, offer `superpowers:designing-modules` in its own message. It returns a module/interface/seam structure that becomes the design's Architecture section. See the Architecture Pass section below.
+5. **Architecture pass (optional)** — once the approach is chosen, if it introduces 2+ new modules or lands in an existing codebase with seams it has to fit, offer `superpowers:designing-modules` in its own message. If neither holds, never mention it. It returns a module/interface/seam structure that becomes the design's Architecture section. See the Architecture Pass section below.
 ```
+
+*(Wording tightened after the Task 4 review: checklist item 5 stated only the permissive half of the trigger — item 2 front-loads its own restraint, so item 5 needed to as well, since agents act off the checklist line alone.)*
 
 Items 5–9 become 6–10. Their text does not change:
 
@@ -493,17 +495,11 @@ summary alongside it:
 > and it becomes the Architecture section of the spec. Worth it here because
 > \<reason\>; skip it if you'd rather I just write the design."
 
-**Fill in `<reason>` with the specific trigger that fired** — "this adds four
-new modules that all touch the session store," not "it seems complex." Naming
-the trigger is what stops the offer degrading into a reflex on every
-brainstorm. If you cannot name one, the trigger did not fire: don't offer.
+**Fill in `\<reason\>` with the specific coupling or seam that fired the trigger** — "this adds four new modules that all touch the session store," not "it seems complex," and not a bare module count. Naming what actually couples is what stops the offer degrading into a reflex on every brainstorm. If you cannot name one, the trigger did not fire: don't offer.
 
 If they decline, continue and don't offer again unless they raise it.
 
-**Don't stack offers.** If you have just offered the visual companion, or the
-user declined it a moment ago, let a beat pass first. Two out-of-band offers
-back to back read as nagging, and the second one gets a reflex "no" that has
-nothing to do with its merits.
+**Don't stack offers.** Never offer this in the message immediately after a visual-companion offer — wait until the user has replied to something else first. And never put two out-of-band yes/no questions to the user before the design is presented. Two offers back to back read as nagging, and the second gets a reflex "no" that has nothing to do with its merits.
 
 **Why after the approach, not before.** Approaches are usually product-level —
 "SSE vs polling." Designing modules for three still-live approaches costs three
@@ -514,6 +510,8 @@ becomes the Architecture section of the design you present at item 6 and of the
 spec you write at item 7. If the visual companion is already running, its
 structure diagram belongs in the browser tab; otherwise Mermaid in the spec.
 ````
+
+*(Wording tightened after the Task 4 review: the stacking rule needed to be testable — "let a beat pass" gave an agent nothing to check itself against — and the reason slot needed to name coupling, not just a trigger, since a bare module count satisfied the old bar vacuously.)*
 
 - [ ] **Step 4: Verify the checklist numbering and section order**
 
