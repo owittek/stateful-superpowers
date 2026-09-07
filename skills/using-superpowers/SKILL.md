@@ -39,6 +39,8 @@ When multiple skills apply, process skills come first — they set the approach,
 
 `brainstorming` and `improving-architecture` are **peer front-ends** — both grill, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
 
+Both front-ends share the same engines: `grilling` (the interview) and `designing-modules` (module and seam design). Engines are invoked by front-ends, not routed to — don't send a task to one directly unless the user names it.
+
 ## Red Flags
 
 These thoughts mean STOP—you're rationalizing:
