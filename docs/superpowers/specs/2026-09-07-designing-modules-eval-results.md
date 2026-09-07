@@ -20,7 +20,14 @@ whether the skills' instructions are followable.
 session) and is unaffected by this change, which touches no hook.
 
 The controller played the human partner across turns. Baseline ran against the
-checkout before `skills/designing-modules/` existed; GREEN runs after.
+checkout before `skills/designing-modules/` existed — verified before the runs
+(`ls skills/ | grep -c designing-modules` → `0`); GREEN runs after.
+
+**Transcripts.** Every turn of every scenario is recorded verbatim in
+[2026-09-07-designing-modules-eval-transcripts.md](2026-09-07-designing-modules-eval-transcripts.md),
+so each claim below is checkable rather than taken on faith. The underlying
+JSONL session transcripts (tool calls and file reads) are harness scratch and
+are not retained.
 
 ## Baseline (RED)
 
