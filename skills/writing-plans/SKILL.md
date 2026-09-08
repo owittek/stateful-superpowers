@@ -26,6 +26,7 @@ If the spec covers multiple independent subsystems, it should have been broken i
 
 Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
 
+- If the spec has an **Architecture section** (produced by `superpowers:designing-modules`), adopt its modules and seams as the file structure: name files after those modules and don't re-derive a different decomposition. If you think it's wrong, say so — don't silently route around it.
 - Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
 - You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
 - Files that change together should live together. Split by responsibility, not by technical layer.

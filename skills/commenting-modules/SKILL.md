@@ -16,7 +16,7 @@ Add Ousterhout-style comments (APOSD ch. 13) and review them. **Rigid skill — 
 
 (Standard precision still applies — bounds, sentinel meaning, invariants — but *read it off the code*, never assume it.)
 
-Reuses the architecture glossary: `../improving-architecture/LANGUAGE.md`. Comment categories, precision-vs-intuition, worked examples, and the two failure modes in depth: `COMMENT-TYPES.md`. Review criteria: `REVIEW.md`.
+Reuses the architecture glossary: `../designing-modules/LANGUAGE.md`. Comment categories, precision-vs-intuition, worked examples, and the two failure modes in depth: `COMMENT-TYPES.md`. Review criteria: `REVIEW.md`.
 
 ## Stages
 
