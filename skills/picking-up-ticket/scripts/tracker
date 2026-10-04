@@ -24,7 +24,12 @@
 # Every op prints a machine-readable result on stdout and exits non-zero with
 # a one-line reason on stderr (2 for usage errors, 1 otherwise). claim and
 # resolve commit the one file they change so other sessions see the
-# transition; a concurrent claim surfaces as a commit conflict.
+# transition; a concurrent claim surfaces as a conflict when the commits meet
+# (merge or push). Caller contract: claim needs git config user.name and
+# records it as the Assignee; resolve sets Status: done and appends
+# "Resolved by <what>" under Comments; register-parent, publish-ticket and
+# comment leave their changes in the work tree for the caller to commit;
+# BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
 #
 # Usage: tracker <op> [args]   (run with no arguments for the op list)
 set -euo pipefail
@@ -163,6 +168,7 @@ blockers_of() {
 # one at the block's end. Never touches the body.
 set_header() {
   local file=$1 key=$2 value=$3 tmp="$1.tmp"
+  value=${value//\\/\\\\}
   awk -v key="$key" -v value="$value" '
     NR <= 2 { print; next }
     !closed && /^$/ { if (!seen) print key ": " value; closed = 1 }
@@ -220,7 +226,7 @@ local_register_parent() {
     printf 'Spec: %s @ %s\n\n' "$spec_path" "$sha"
     [ -z "$summary" ] || printf '%s\n\n' "$summary"
     printf '## Tickets\n'
-  } >"$file"
+  } >"$file" || die "cannot write $file"
   printf '%s/00\n' "$slug"
 }
 
@@ -250,7 +256,7 @@ local_publish_ticket() {
     printf '# %s: %s\n\n' "$nn" "$title"
     printf 'Kind: %s\nParent: %s\nBlocked by: %s\nStatus: ready\n\n' "$kind" "$parent_ref" "$blocked"
     cat "$body_file"
-  } >"$file"
+  } >"$file" || die "cannot write $file"
   ensure_trailing_newline "$file"
   add_child "$parent_file" "$name"
   canonical_ref "$file"
@@ -299,6 +305,9 @@ local_claim() {
   local file ref me state assignee
   file=$(resolve_ref "$1")
   ref=$(canonical_ref "$file")
+  case "$(basename "$file")" in
+    00-*) die "$ref is a parent, not a ticket" ;;
+  esac
   me=$(git_identity)
   state=$(header_field "$file" Status)
   assignee=$(header_field "$file" Assignee)

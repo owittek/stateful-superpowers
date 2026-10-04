@@ -29,7 +29,7 @@ fail() {
 
 # g GIT_ARGS... -> git with the same clean environment the script under test sees
 g() {
-  HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 git "$@"
+  HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" GIT_CONFIG_NOSYSTEM=1 git "$@"
 }
 
 # make_repo NAME [H1] -> path of a fresh repo whose docs/agents/issue-tracker.md
@@ -50,7 +50,7 @@ make_repo() {
 tracker() {
   local repo=$1
   shift
-  (cd "$repo" && HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 "$TRACKER" "$@")
+  (cd "$repo" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" GIT_CONFIG_NOSYSTEM=1 "$TRACKER" "$@")
 }
 
 # assert_eq DESCRIPTION EXPECTED ACTUAL
@@ -108,16 +108,16 @@ assert_file_has_line() {
   fi
 }
 
-# assert_fails DESCRIPTION NEEDLE CMD... -> CMD exits non-zero and prints
-# exactly one line (stdout+stderr) containing NEEDLE
+# assert_fails DESCRIPTION NEEDLE CMD... -> CMD exits 1 and prints exactly
+# one line (stdout+stderr) containing NEEDLE
 assert_fails() {
   local description=$1 needle=$2 out status=0 lines
   shift 2
   out=$("$@" 2>&1) || status=$?
   lines=$(printf '%s\n' "$out" | wc -l | tr -d ' ')
-  if [ "$status" -eq 0 ]; then
+  if [ "$status" -ne 1 ]; then
     fail "$description"
-    echo "    expected a non-zero exit"
+    echo "    expected exit status 1, got $status"
   elif [ "$lines" -ne 1 ]; then
     fail "$description"
     echo "    expected a one-line reason, got $lines lines:"

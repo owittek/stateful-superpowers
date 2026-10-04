@@ -99,7 +99,8 @@ echo "tracker: frontier"
 tracker "$repo" publish-ticket "$bare_parent" ticket "Other work" "$body" >/dev/null
 assert_eq "frontier lists only the unblocked, unclaimed ticket" "$(printf 'tracker-bridge-design/01\tLocal adapter')" "$(tracker "$repo" frontier ticket "$parent")"
 assert_eq "frontier without a parent spans every parent" "$(printf 'bare/01\tOther work\ntracker-bridge-design/01\tLocal adapter')" "$(tracker "$repo" frontier ticket)"
-assert_eq "frontier filters by kind" "" "$(tracker "$repo" frontier decision "$parent")"
+out=$(tracker "$repo" frontier decision "$parent")
+assert_eq "frontier filters by kind" "" "$out"
 
 echo "tracker: claim"
 g -C "$repo" add -- "$pfile"
@@ -117,12 +118,14 @@ assert_eq "a repeated claim adds no commit" "$head" "$(g -C "$repo" rev-parse HE
 out=$(tracker "$repo" fetch "$t1")
 assert_line "fetch shows the claimed state" "state: claimed" "$out"
 assert_line "fetch shows the assignee" "assignee: Test Bot" "$out"
-assert_eq "frontier is empty after the claim" "" "$(tracker "$repo" frontier ticket "$parent")"
+out=$(tracker "$repo" frontier ticket "$parent")
+assert_eq "frontier is empty after the claim" "" "$out"
 g -C "$repo" config user.name "Other Dev"
 assert_fails "claim on a ticket claimed by another names them" "tracker-bridge-design/01 is claimed by Test Bot" tracker "$repo" claim "$t1"
 g -C "$repo" config --unset user.name
 assert_fails "claim without a git identity is refused" "git user.name is not set" tracker "$repo" claim "$t2"
 g -C "$repo" config user.name "Test Bot"
+assert_fails "claim on a parent is refused" "tracker-bridge-design/00 is a parent, not a ticket" tracker "$repo" claim "$parent"
 
 echo "tracker: comment"
 note="$TEST_ROOT/note.md"
