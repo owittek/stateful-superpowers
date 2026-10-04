@@ -230,6 +230,30 @@ local_fetch() {
   body_of "$file"
 }
 
+local_frontier() {
+  local kind=$1 parent_file f b bf ok
+  if [ $# -eq 2 ]; then
+    parent_file=$(resolve_ref "$2")
+    set -- "$(dirname "$parent_file")"/[0-9][0-9]-*.md
+  else
+    set -- "$TICKETS"/*/[0-9][0-9]-*.md
+  fi
+  for f in "$@"; do
+    [ -f "$f" ] || continue
+    case "$(basename "$f")" in 00-*) continue ;; esac
+    [ "$(header_field "$f" Kind)" = "$kind" ] || continue
+    [ "$(header_field "$f" Status)" = ready ] || continue
+    ok=1
+    while IFS= read -r b; do
+      [ -n "$b" ] || continue
+      bf=$(resolve_ref "$b" 2>/dev/null) || { ok=0; break; }
+      [ "$(header_field "$bf" Status)" = done ] || { ok=0; break; }
+    done <<<"$(blockers_of "$f")"
+    [ "$ok" = 1 ] || continue
+    printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
+  done
+}
+
 # --- dispatch ---------------------------------------------------------------
 
 [ $# -ge 1 ] || usage

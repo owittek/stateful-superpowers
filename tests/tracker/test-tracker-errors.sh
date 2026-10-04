@@ -55,4 +55,7 @@ assert_fails "publish-ticket with an unknown parent" "no such ref: x/00" tracker
 assert_fails "fetch of an unknown ref" "no such ref: x/01" tracker "$local" fetch x/01
 assert_fails "fetch of a malformed ref" "no such ref: 11" tracker "$local" fetch 11
 
+assert_fails "frontier scoped to an unknown parent" "no such ref: x/00" tracker "$local" frontier ticket x/00
+assert_eq "frontier with no tickets directory prints nothing" "" "$(tracker "$local" frontier ticket)"
+
 finish

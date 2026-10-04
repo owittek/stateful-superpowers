@@ -95,4 +95,10 @@ assert_line "fetch accepts a file path as the ref" "ref: tracker-bridge-design/0
 out=$(tracker "$repo" fetch tracker-bridge-design/02-github-adapter)
 assert_line "fetch accepts a ref with its slug suffix" "ref: tracker-bridge-design/02" "$out"
 
+echo "tracker: frontier"
+tracker "$repo" publish-ticket "$bare_parent" ticket "Other work" "$body" >/dev/null
+assert_eq "frontier lists only the unblocked, unclaimed ticket" "$(printf 'tracker-bridge-design/01\tLocal adapter')" "$(tracker "$repo" frontier ticket "$parent")"
+assert_eq "frontier without a parent spans every parent" "$(printf 'bare/01\tOther work\ntracker-bridge-design/01\tLocal adapter')" "$(tracker "$repo" frontier ticket)"
+assert_eq "frontier filters by kind" "" "$(tracker "$repo" frontier decision "$parent")"
+
 finish
