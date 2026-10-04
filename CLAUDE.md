@@ -113,3 +113,9 @@ Before proposing changes to skill design, workflow philosophy, or architecture, 
 - One problem per PR
 - Test on at least one harness and report results in the environment table
 - Describe the problem you solved, not just what you changed
+
+## Agent skills
+
+### Issue tracker
+
+Issues and tickets for this repo live in GitHub Issues (`owittek/stateful-superpowers`), worked from branch `next`. See `docs/agents/issue-tracker.md`.
