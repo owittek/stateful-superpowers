@@ -477,7 +477,7 @@ assert_file_has_line "parent status" "$pfile" "Status: open"
 assert_file_has_line "parent spec pointer" "$pfile" "Spec: docs/superpowers/specs/2026-10-04-tracker-bridge-design.md @ 5d79504"
 assert_file_has_line "parent summary" "$pfile" "Work is session-bound; the tracker adds a frontier and a claim."
 assert_file_has_line "parent tickets heading" "$pfile" "## Tickets"
-assert_eq "register-parent leaves the file uncommitted" "?? docs/superpowers/tickets/" "$(g -C "$repo" status --porcelain)"
+assert_eq "register-parent leaves the file uncommitted" "?? docs/superpowers/" "$(g -C "$repo" status --porcelain)"
 assert_fails "registering the same title twice is refused" "parent already registered: tracker-bridge-design/00" tracker "$repo" register-parent spec "Tracker Bridge: Design" docs/x.md 0000000
 assert_fails "registering with a missing summary file is refused" "no such file" tracker "$repo" register-parent spec "Another" docs/x.md 0000000 "$TEST_ROOT/missing.md"
 bare_parent=$(tracker "$repo" register-parent spec "Bare" docs/y.md 1111111)

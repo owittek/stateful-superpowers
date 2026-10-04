@@ -50,7 +50,38 @@ die() {
 
 # --- shared helpers ---------------------------------------------------------
 
+# slugify TITLE -> lowercase, [a-z0-9] runs joined by "-", at most 60 chars
+slugify() {
+  local slug
+  slug=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-60 | sed -E 's/-+$//')
+  [ -n "$slug" ] || die "cannot derive a slug from title: $1"
+  printf '%s\n' "$slug"
+}
+
 # --- Local Markdown adapter -------------------------------------------------
+
+local_register_parent() {
+  local kind=$1 title=$2 spec_path=$3 sha=$4 summary_file=${5:-}
+  local slug dir file summary=""
+  slug=$(slugify "$title")
+  dir="$TICKETS/$slug"
+  [ ! -e "$dir" ] || die "parent already registered: $slug/00"
+  if [ -n "$summary_file" ]; then
+    [ -f "$summary_file" ] || die "no such file: $summary_file"
+    summary=$(cat "$summary_file")
+  fi
+  mkdir -p "$dir"
+  file="$dir/00-$kind.md"
+  {
+    printf '# 00: %s\n\n' "$title"
+    printf 'Kind: %s\nStatus: open\n\n' "$kind"
+    printf 'Spec: %s @ %s\n\n' "$spec_path" "$sha"
+    [ -z "$summary" ] || printf '%s\n\n' "$summary"
+    printf '## Tickets\n'
+  } >"$file"
+  printf '%s/00\n' "$slug"
+}
 
 # --- dispatch ---------------------------------------------------------------
 
