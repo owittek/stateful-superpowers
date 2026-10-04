@@ -68,4 +68,31 @@ assert_fails "publishing under a ticket instead of a parent is refused" "is not 
 assert_fails "publishing with a missing body file is refused" "no such file" tracker "$repo" publish-ticket "$parent" ticket "Nope" "$TEST_ROOT/missing.md"
 assert_eq "a refused publish writes nothing" 4 "$(find "$tickets/tracker-bridge-design" -name '[0-9][0-9]-*.md' ! -name '00-*' | wc -l | tr -d ' ')"
 
+echo "tracker: fetch"
+out=$(tracker "$repo" fetch "$t2")
+assert_line "fetch prints the ref" "ref: tracker-bridge-design/02" "$out"
+assert_line "fetch prints the kind" "kind: ticket" "$out"
+assert_line "fetch prints the title" "title: GitHub adapter" "$out"
+assert_line "fetch prints the state" "state: ready" "$out"
+assert_line "fetch prints no assignee" "assignee: none" "$out"
+assert_line "fetch prints the parent" "parent: tracker-bridge-design/00" "$out"
+assert_line "fetch prints the blockers" "blockers: tracker-bridge-design/01" "$out"
+assert_line "fetch prints the body" "## What to build" "$out"
+assert_line "fetch prints the body's criteria" "- [ ] It works" "$out"
+assert_no_line "fetch does not repeat header lines in the body" "Status: ready" "$out"
+assert_eq "fetch separates fields from body with one blank line" "## What to build" "$(printf '%s\n' "$out" | sed -n '9p')"
+out=$(tracker "$repo" fetch "$t4")
+assert_line "fetch lists several blockers space-separated" "blockers: tracker-bridge-design/02 tracker-bridge-design/03" "$out"
+out=$(tracker "$repo" fetch "$parent")
+assert_line "fetch on the parent prints its kind" "kind: spec" "$out"
+assert_line "fetch on the parent prints open" "state: open" "$out"
+assert_line "fetch on the parent has no parent" "parent: none" "$out"
+assert_line "fetch on the parent has no blockers" "blockers: none" "$out"
+assert_line "fetch on the parent prints the spec pointer" "Spec: docs/superpowers/specs/2026-10-04-tracker-bridge-design.md @ 5d79504" "$out"
+assert_line "fetch on the parent lists children in the body" "- 01-local-adapter.md" "$out"
+out=$(tracker "$repo" fetch docs/superpowers/tickets/tracker-bridge-design/02-github-adapter.md)
+assert_line "fetch accepts a file path as the ref" "ref: tracker-bridge-design/02" "$out"
+out=$(tracker "$repo" fetch tracker-bridge-design/02-github-adapter)
+assert_line "fetch accepts a ref with its slug suffix" "ref: tracker-bridge-design/02" "$out"
+
 finish

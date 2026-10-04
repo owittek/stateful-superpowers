@@ -132,6 +132,33 @@ add_child() {
   rm -f "$tmp"
 }
 
+# title_of FILE -> the title without its "# NN: " prefix
+title_of() {
+  sed -n '1s/^# [0-9][0-9]: //p' "$1"
+}
+
+# header_field FILE KEY -> KEY's value from the header block, or ""
+header_field() {
+  awk -v key="$2: " '
+    NR <= 2 { next }
+    /^$/ { exit }
+    index($0, key) == 1 { print substr($0, length(key) + 1); exit }
+  ' "$1"
+}
+
+# body_of FILE -> everything after the header block
+body_of() {
+  awk 'NR <= 2 { next } !body { if ($0 == "") body = 1; next } { print }' "$1"
+}
+
+# blockers_of FILE -> one blocker ref per line, nothing when unblocked
+blockers_of() {
+  local raw
+  raw=$(header_field "$1" "Blocked by")
+  case "$raw" in None* | "") return 0 ;; esac
+  printf '%s\n' "$raw" | tr ',' '\n' | tr -d ' ' | sed '/^$/d'
+}
+
 # --- Local Markdown adapter -------------------------------------------------
 
 local_register_parent() {
@@ -186,6 +213,21 @@ local_publish_ticket() {
   ensure_trailing_newline "$file"
   add_child "$parent_file" "$name"
   canonical_ref "$file"
+}
+
+local_fetch() {
+  local file ref kind title state assignee parent blockers
+  file=$(resolve_ref "$1")
+  ref=$(canonical_ref "$file")
+  kind=$(header_field "$file" Kind)
+  title=$(title_of "$file")
+  state=$(header_field "$file" Status)
+  assignee=$(header_field "$file" Assignee)
+  parent=$(header_field "$file" Parent)
+  blockers=$(blockers_of "$file" | tr '\n' ' ' | sed 's/ $//')
+  printf 'ref: %s\nkind: %s\ntitle: %s\nstate: %s\nassignee: %s\nparent: %s\nblockers: %s\n\n' \
+    "$ref" "$kind" "$title" "$state" "${assignee:-none}" "${parent:-none}" "${blockers:-none}"
+  body_of "$file"
 }
 
 # --- dispatch ---------------------------------------------------------------
