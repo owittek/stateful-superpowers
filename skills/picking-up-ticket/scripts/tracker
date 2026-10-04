@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Tracker port: the seven operations behind which the issue tracker's backend
+# is hidden (register-parent, publish-ticket, frontier, fetch, claim, resolve,
+# comment). Skills call this instead of re-deriving tracker incantations, so
+# one caller cannot drift from another.
+#
+# The backend is the H1 of docs/agents/issue-tracker.md:
+#   "# Issue tracker: Local Markdown"  -> files under docs/superpowers/tickets/
+#   "# Issue tracker: GitHub"          -> gh (not implemented yet)
+# Any other H1 means "other": this script refuses and the skills follow the
+# config's prose by hand.
+#
+# Local Markdown layout. One directory per parent,
+# docs/superpowers/tickets/<parent-slug>/, holding 00-<kind>.md (the parent)
+# and NN-<slug>.md (its children, numbered from 01). A ref is
+# "<parent-slug>/<NN>"; "<parent-slug>/00" is the parent. Each file is a title
+# line "# NN: <title>", a blank line, a header block of "Key: value" lines, a
+# blank line, then the body. The header block is the tracker's state (ADR
+# 0002: the tracker holds graph and state, never content): Kind, Parent,
+# Blocked by, Status, Assignee. Status is ready | claimed | done on a child and
+# open on the parent. The body is what the publisher wrote and is never
+# rewritten; comments append under "## Comments".
+#
+# Every op prints a machine-readable result on stdout and exits non-zero with
+# a one-line reason on stderr (2 for usage errors, 1 otherwise). claim and
+# resolve commit the one file they change so other sessions see the
+# transition; a concurrent claim surfaces as a commit conflict.
+#
+# Usage: tracker <op> [args]   (run with no arguments for the op list)
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: tracker <op> [args]
+  register-parent KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]  -> ref
+  publish-ticket  PARENT KIND TITLE BODY_FILE [BLOCKER...]  -> ref
+  frontier        KIND [PARENT]                             -> ref<TAB>title per line
+  fetch           REF                                       -> fields, blank line, body
+  claim           REF                                       -> ok
+  resolve         REF WHAT                                  -> ok
+  comment         REF TEXT_FILE                             -> ok
+EOF
+  exit 2
+}
+
+die() {
+  echo "$*" >&2
+  exit 1
+}
+
+# --- shared helpers ---------------------------------------------------------
+
+# --- Local Markdown adapter -------------------------------------------------
+
+# --- dispatch ---------------------------------------------------------------
+
+[ $# -ge 1 ] || usage
+op=$1
+shift
+case "$op" in
+  register-parent) [ $# -ge 4 ] && [ $# -le 5 ] || usage ;;
+  publish-ticket) [ $# -ge 4 ] || usage ;;
+  frontier) [ $# -ge 1 ] && [ $# -le 2 ] || usage ;;
+  fetch | claim) [ $# -eq 1 ] || usage ;;
+  resolve | comment) [ $# -eq 2 ] || usage ;;
+  *) usage ;;
+esac
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git work tree"
+CONFIG="$ROOT/docs/agents/issue-tracker.md"
+TICKETS="$ROOT/docs/superpowers/tickets"
+[ -f "$CONFIG" ] || die "no docs/agents/issue-tracker.md: run setting-up-tracker first"
+
+h1=$(grep -m 1 '^# ' "$CONFIG" | sed 's/^# //; s/[[:space:]]*$//' || true)
+backend=${h1#"Issue tracker: "}
+case "$backend" in
+  "Local Markdown") adapter=local ;;
+  GitHub) die "GitHub backend is not implemented yet; run gh by hand per docs/agents/issue-tracker.md" ;;
+  "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; run setting-up-tracker" ;;
+  *) die "issue tracker \"$backend\" is not supported by this script; follow docs/agents/issue-tracker.md by hand" ;;
+esac
+
+"${adapter}_${op//-/_}" "$@"
