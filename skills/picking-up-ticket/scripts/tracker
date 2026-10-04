@@ -59,6 +59,79 @@ slugify() {
   printf '%s\n' "$slug"
 }
 
+# resolve_ref REF -> absolute path of the ref's file, or die. Accepts
+# "<slug>/NN" and "<slug>/NN-<anything>", with or without the tickets-dir
+# prefix and the ".md" suffix, so a pasted filename works as a ref.
+resolve_ref() {
+  local ref=$1 rel dir nn file
+  rel=${ref#"$TICKETS"/}
+  rel=${rel#docs/superpowers/tickets/}
+  rel=${rel%.md}
+  case "$rel" in
+    */[0-9][0-9] | */[0-9][0-9]-*) ;;
+    *) die "no such ref: $ref" ;;
+  esac
+  dir=${rel%%/*}
+  nn=${rel#*/}
+  nn=${nn:0:2}
+  file=$(printf '%s\n' "$TICKETS/$dir/$nn"-*.md | head -n 1)
+  [ -f "$file" ] || die "no such ref: $ref"
+  printf '%s\n' "$file"
+}
+
+# canonical_ref FILE -> "<slug>/NN"
+canonical_ref() {
+  local base
+  base=$(basename "$1")
+  printf '%s/%s\n' "$(basename "$(dirname "$1")")" "${base:0:2}"
+}
+
+# next_number DIR -> the next zero-padded child number in DIR
+next_number() {
+  local max=0 f n
+  for f in "$1"/[0-9][0-9]-*.md; do
+    [ -e "$f" ] || continue
+    n=$(basename "$f")
+    n=$((10#${n:0:2}))
+    if [ "$n" -gt "$max" ]; then max=$n; fi
+  done
+  [ "$max" -lt 99 ] || die "$(basename "$1") already has 99 children"
+  printf '%02d\n' "$((max + 1))"
+}
+
+ensure_trailing_newline() {
+  if [ -s "$1" ] && [ -n "$(tail -c 1 "$1")" ]; then echo >>"$1"; fi
+}
+
+# add_child PARENT_FILE CHILD_FILENAME -> append "- CHILD_FILENAME" to the
+# list under the parent's "## Tickets" heading, after its last item; create
+# the heading at the end of the file when it is missing
+add_child() {
+  local file=$1 tmp="$1.tmp"
+  awk -v line="- $2" '
+    { lines[NR] = $0 }
+    /^## Tickets$/ && !start { start = NR }
+    END {
+      if (!start) {
+        for (i = 1; i <= NR; i++) print lines[i]
+        print ""; print "## Tickets"; print ""; print line
+        exit
+      }
+      at = start
+      for (i = start + 1; i <= NR; i++) {
+        if (lines[i] ~ /^- /) at = i
+        else if (lines[i] ~ /^## /) break
+      }
+      for (i = 1; i <= NR; i++) {
+        print lines[i]
+        if (i == at) { if (at == start) print ""; print line }
+      }
+    }
+  ' "$file" >"$tmp"
+  cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
 # --- Local Markdown adapter -------------------------------------------------
 
 local_register_parent() {
@@ -81,6 +154,38 @@ local_register_parent() {
     printf '## Tickets\n'
   } >"$file"
   printf '%s/00\n' "$slug"
+}
+
+local_publish_ticket() {
+  local parent=$1 kind=$2 title=$3 body_file=$4
+  shift 4
+  local parent_file parent_ref dir slug nn name file blocked="" ref blocker_file
+  parent_file=$(resolve_ref "$parent")
+  case "$(basename "$parent_file")" in
+    00-*) ;;
+    *) die "$parent is not a parent" ;;
+  esac
+  [ -f "$body_file" ] || die "no such file: $body_file"
+  for ref in "$@"; do
+    blocker_file=$(resolve_ref "$ref")
+    ref=$(canonical_ref "$blocker_file")
+    blocked="${blocked:+$blocked, }$ref"
+  done
+  [ -n "$blocked" ] || blocked="None (can start immediately)"
+  parent_ref=$(canonical_ref "$parent_file")
+  dir=$(dirname "$parent_file")
+  slug=$(slugify "$title")
+  nn=$(next_number "$dir")
+  name="$nn-$slug.md"
+  file="$dir/$name"
+  {
+    printf '# %s: %s\n\n' "$nn" "$title"
+    printf 'Kind: %s\nParent: %s\nBlocked by: %s\nStatus: ready\n\n' "$kind" "$parent_ref" "$blocked"
+    cat "$body_file"
+  } >"$file"
+  ensure_trailing_newline "$file"
+  add_child "$parent_file" "$name"
+  canonical_ref "$file"
 }
 
 # --- dispatch ---------------------------------------------------------------

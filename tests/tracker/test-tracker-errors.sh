@@ -49,4 +49,8 @@ assert_every_op_fails "$noh1" "no H1 naming the issue tracker" "without a backen
 github=$(make_repo github "Issue tracker: GitHub")
 assert_every_op_fails "$github" "not implemented yet" "on the GitHub backend reports it is not implemented"
 
+echo "tracker: unknown refs"
+local=$(make_repo local)
+assert_fails "publish-ticket with an unknown parent" "no such ref: x/00" tracker "$local" publish-ticket x/00 ticket "A title" /dev/null
+
 finish
