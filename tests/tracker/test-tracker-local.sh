@@ -101,4 +101,27 @@ assert_eq "frontier lists only the unblocked, unclaimed ticket" "$(printf 'track
 assert_eq "frontier without a parent spans every parent" "$(printf 'bare/01\tOther work\ntracker-bridge-design/01\tLocal adapter')" "$(tracker "$repo" frontier ticket)"
 assert_eq "frontier filters by kind" "" "$(tracker "$repo" frontier decision "$parent")"
 
+echo "tracker: claim"
+g -C "$repo" add -- "$pfile"
+assert_eq "claim prints ok" ok "$(tracker "$repo" claim "$t1")"
+assert_file_has_line "claim sets the status" "$f1" "Status: claimed"
+assert_file_has_line "claim records the assignee" "$f1" "Assignee: Test Bot"
+assert_file_has_line "claim keeps the body" "$f1" "- [ ] It works"
+assert_eq "claim commits the ticket file" "chore(tracker): claim tracker-bridge-design/01" "$(g -C "$repo" log -1 --format=%s)"
+assert_eq "claim leaves the ticket file clean" "" "$(g -C "$repo" status --porcelain -- "$f1")"
+assert_eq "claim commits only the ticket file" "docs/superpowers/tickets/tracker-bridge-design/01-local-adapter.md" "$(g -C "$repo" diff-tree --no-commit-id --name-only -r HEAD)"
+assert_eq "claim leaves other staged files staged" "A  docs/superpowers/tickets/tracker-bridge-design/00-spec.md" "$(g -C "$repo" status --porcelain -- "$pfile")"
+head=$(g -C "$repo" rev-parse HEAD)
+assert_eq "claim by the same claimant twice succeeds" ok "$(tracker "$repo" claim "$t1")"
+assert_eq "a repeated claim adds no commit" "$head" "$(g -C "$repo" rev-parse HEAD)"
+out=$(tracker "$repo" fetch "$t1")
+assert_line "fetch shows the claimed state" "state: claimed" "$out"
+assert_line "fetch shows the assignee" "assignee: Test Bot" "$out"
+assert_eq "frontier is empty after the claim" "" "$(tracker "$repo" frontier ticket "$parent")"
+g -C "$repo" config user.name "Other Dev"
+assert_fails "claim on a ticket claimed by another names them" "tracker-bridge-design/01 is claimed by Test Bot" tracker "$repo" claim "$t1"
+g -C "$repo" config --unset user.name
+assert_fails "claim without a git identity is refused" "git user.name is not set" tracker "$repo" claim "$t2"
+g -C "$repo" config user.name "Test Bot"
+
 finish

@@ -159,6 +159,35 @@ blockers_of() {
   printf '%s\n' "$raw" | tr ',' '\n' | tr -d ' ' | sed '/^$/d'
 }
 
+# set_header FILE KEY VALUE -> replace KEY's line in the header block, or add
+# one at the block's end. Never touches the body.
+set_header() {
+  local file=$1 key=$2 value=$3 tmp="$1.tmp"
+  awk -v key="$key" -v value="$value" '
+    NR <= 2 { print; next }
+    !closed && /^$/ { if (!seen) print key ": " value; closed = 1 }
+    !closed && index($0, key ": ") == 1 { print key ": " value; seen = 1; next }
+    { print }
+  ' "$file" >"$tmp"
+  cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
+# git_identity -> git user.name, or die: claim needs a name to record
+git_identity() {
+  local me
+  me=$(git -C "$ROOT" config user.name || true)
+  [ -n "$me" ] || die "git user.name is not set; claim needs an identity"
+  printf '%s\n' "$me"
+}
+
+# commit_file FILE MESSAGE -> commit this one file, leaving the rest of the
+# index and work tree alone
+commit_file() {
+  git -C "$ROOT" add -- "$1"
+  git -C "$ROOT" commit -q -m "$2" -- "$1"
+}
+
 # --- Local Markdown adapter -------------------------------------------------
 
 local_register_parent() {
@@ -252,6 +281,27 @@ local_frontier() {
     [ "$ok" = 1 ] || continue
     printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
   done
+}
+
+local_claim() {
+  local file ref me state assignee
+  file=$(resolve_ref "$1")
+  ref=$(canonical_ref "$file")
+  me=$(git_identity)
+  state=$(header_field "$file" Status)
+  assignee=$(header_field "$file" Assignee)
+  case "$state" in
+    claimed)
+      [ "$assignee" = "$me" ] || die "$ref is claimed by ${assignee:-someone else}"
+      echo ok
+      return 0
+      ;;
+    done) die "$ref is done" ;;
+  esac
+  set_header "$file" Status claimed
+  set_header "$file" Assignee "$me"
+  commit_file "$file" "chore(tracker): claim $ref"
+  echo ok
 }
 
 # --- dispatch ---------------------------------------------------------------
