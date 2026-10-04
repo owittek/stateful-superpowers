@@ -324,6 +324,16 @@ local_comment() {
   echo ok
 }
 
+local_resolve() {
+  local file ref
+  file=$(resolve_ref "$1")
+  ref=$(canonical_ref "$file")
+  set_header "$file" Status done
+  printf 'Resolved by %s\n' "$2" | append_comment "$file"
+  commit_file "$file" "chore(tracker): resolve $ref"
+  echo ok
+}
+
 # --- dispatch ---------------------------------------------------------------
 
 [ $# -ge 1 ] || usage

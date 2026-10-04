@@ -140,4 +140,15 @@ assert_eq "the file ends with a newline" "" "$(tail -c 1 "$f1")"
 assert_line "fetch keeps the comments in the body" "Second note" "$(tracker "$repo" fetch "$t1")"
 assert_fails "comment with a missing text file is refused" "no such file" tracker "$repo" comment "$t1" "$TEST_ROOT/missing.md"
 
+echo "tracker: resolve"
+assert_eq "resolve prints ok" ok "$(tracker "$repo" resolve "$t1" "merge abc1234")"
+assert_file_has_line "resolve sets done" "$f1" "Status: done"
+assert_file_has_line "resolve keeps the assignee" "$f1" "Assignee: Test Bot"
+assert_file_has_line "resolve records what resolved it" "$f1" "Resolved by merge abc1234"
+assert_eq "resolve commits the ticket file" "chore(tracker): resolve tracker-bridge-design/01" "$(g -C "$repo" log -1 --format=%s)"
+assert_eq "resolve leaves the ticket file clean" "" "$(g -C "$repo" status --porcelain -- "$f1")"
+assert_line "fetch shows done" "state: done" "$(tracker "$repo" fetch "$t1")"
+assert_eq "frontier lists the other two after the resolve" "$(printf 'tracker-bridge-design/02\tGitHub adapter\ntracker-bridge-design/03\tSetup wizard')" "$(tracker "$repo" frontier ticket "$parent")"
+assert_fails "claim on a done ticket is refused" "tracker-bridge-design/01 is done" tracker "$repo" claim "$t1"
+
 finish

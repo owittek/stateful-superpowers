@@ -59,5 +59,6 @@ assert_fails "claim of an unknown ref" "no such ref: x/01" tracker "$local" clai
 assert_fails "frontier scoped to an unknown parent" "no such ref: x/00" tracker "$local" frontier ticket x/00
 assert_eq "frontier with no tickets directory prints nothing" "" "$(tracker "$local" frontier ticket)"
 assert_fails "comment on an unknown ref" "no such ref: x/01" tracker "$local" comment x/01 /dev/null
+assert_fails "resolve of an unknown ref" "no such ref: x/01" tracker "$local" resolve x/01 abc1234
 
 finish
