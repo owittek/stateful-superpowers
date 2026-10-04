@@ -188,6 +188,18 @@ commit_file() {
   git -C "$ROOT" commit -q -m "$2" -- "$1"
 }
 
+# append_comment FILE < text -> add the text under "## Comments", dated and
+# attributed to git user.name
+append_comment() {
+  local file=$1 who
+  who=$(git -C "$ROOT" config user.name || true)
+  ensure_trailing_newline "$file"
+  grep -q '^## Comments$' "$file" || printf '\n## Comments\n' >>"$file"
+  printf '\n### %s %s\n\n' "$(date +%Y-%m-%d)" "${who:-unknown}" >>"$file"
+  cat >>"$file"
+  ensure_trailing_newline "$file"
+}
+
 # --- Local Markdown adapter -------------------------------------------------
 
 local_register_parent() {
@@ -301,6 +313,14 @@ local_claim() {
   set_header "$file" Status claimed
   set_header "$file" Assignee "$me"
   commit_file "$file" "chore(tracker): claim $ref"
+  echo ok
+}
+
+local_comment() {
+  local file
+  file=$(resolve_ref "$1")
+  [ -f "$2" ] || die "no such file: $2"
+  append_comment "$file" <"$2"
   echo ok
 }
 

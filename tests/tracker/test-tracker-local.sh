@@ -124,4 +124,20 @@ g -C "$repo" config --unset user.name
 assert_fails "claim without a git identity is refused" "git user.name is not set" tracker "$repo" claim "$t2"
 g -C "$repo" config user.name "Test Bot"
 
+echo "tracker: comment"
+note="$TEST_ROOT/note.md"
+printf 'PR opened: https://example.test/pr/1\n' >"$note"
+assert_eq "comment prints ok" ok "$(tracker "$repo" comment "$t1" "$note")"
+assert_file_has_line "comment adds the heading" "$f1" "## Comments"
+assert_file_has_line "comment appends the text" "$f1" "PR opened: https://example.test/pr/1"
+assert_file_has_line "comment is dated and attributed" "$f1" "### $(date +%Y-%m-%d) Test Bot"
+assert_eq "comment does not commit" " M docs/superpowers/tickets/tracker-bridge-design/01-local-adapter.md" "$(g -C "$repo" status --porcelain -- "$f1")"
+printf 'Second note' >"$note"
+tracker "$repo" comment "$t1" "$note" >/dev/null
+assert_eq "the Comments heading appears once" 1 "$(grep -c '^## Comments$' "$f1")"
+assert_file_has_line "later comments append under it" "$f1" "Second note"
+assert_eq "the file ends with a newline" "" "$(tail -c 1 "$f1")"
+assert_line "fetch keeps the comments in the body" "Second note" "$(tracker "$repo" fetch "$t1")"
+assert_fails "comment with a missing text file is refused" "no such file" tracker "$repo" comment "$t1" "$TEST_ROOT/missing.md"
+
 finish
