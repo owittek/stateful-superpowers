@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Tracker port: the seven operations behind which the issue tracker's backend
-# is hidden (register-parent, publish-ticket, frontier, fetch, claim, resolve,
-# comment). Skills call this instead of re-deriving tracker incantations, so
-# one caller cannot drift from another.
+# Tracker port: the operations behind which the issue tracker's backend is
+# hidden (register-parent, publish-ticket, frontier, fetch, claim, resolve,
+# comment, find, init). Skills call this instead of re-deriving tracker
+# incantations, so one caller cannot drift from another.
 #
 # The backend is the H1 of docs/agents/issue-tracker.md:
 #   "# Issue tracker: Local Markdown"  -> files under docs/superpowers/tickets/
-#   "# Issue tracker: GitHub"          -> gh (not implemented yet)
+#   "# Issue tracker: GitHub"          -> gh (not implemented yet, #13)
 # Any other H1 means "other": this script refuses and the skills follow the
-# config's prose by hand.
+# config's prose by hand. No config: every op but init fails with "no tracker
+# configured: run tracker init". `init local` writes the Local Markdown config
+# (uncommitted) and is a no-op when one exists; it never overwrites another
+# backend's config. `init github` is not implemented yet (#13).
 #
 # Local Markdown layout. One directory per parent,
 # docs/superpowers/tickets/<parent-slug>/, holding 00-<kind>.md (the parent)
@@ -21,24 +24,38 @@
 # open on the parent. The body is what the publisher wrote and is never
 # rewritten; comments append under "## Comments".
 #
+# The standing Follow-ups parent is follow-ups/00 (file
+# follow-ups/00-followups.md, kind followups, title "Follow-ups", no spec
+# pointer). `publish-ticket - followup ...` files a deferred follow-up under it,
+# registering it on first use; PARENT "-" is refused for any other kind. A
+# follow-up's body is its content (ADR 0005).
+#
+# `find KIND TEXT` lists tickets of KIND that are not done and whose title or
+# body contains TEXT (case-insensitive, literal); no match prints nothing and
+# exits 0. Callers use it to avoid publishing duplicates.
+#
 # Every op prints a machine-readable result on stdout and exits non-zero with
 # a one-line reason on stderr (2 for usage errors, 1 otherwise). claim and
 # resolve commit the one file they change so other sessions see the
 # transition; a concurrent claim surfaces as a conflict when the commits meet
 # (merge or push). Caller contract: claim needs git config user.name and
 # records it as the Assignee; resolve sets Status: done and appends
-# "Resolved by <what>" under Comments; register-parent, publish-ticket and
-# comment leave their changes in the work tree for the caller to commit;
-# BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
+# "Resolved by <what>" under Comments; register-parent, publish-ticket,
+# comment and init leave their changes in the work tree for the caller to
+# commit; BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
 #
-# Usage: tracker <op> [args]   (run with no arguments for the op list)
+# -C DIR runs as if started in DIR, the way git -C does, so a caller working
+# on another checkout or worktree needs no `cd DIR ;` prefix. Relative file
+# arguments then resolve against DIR.
+#
+# Usage: tracker [-C DIR] <op> [args]   (run with no arguments for the op list)
 set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
 usage: tracker [-C DIR] <op> [args]
   register-parent KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]  -> ref
-  publish-ticket  PARENT KIND TITLE BODY_FILE [BLOCKER...]  -> ref
+  publish-ticket  PARENT|- KIND TITLE BODY_FILE [BLOCKER...] -> ref
   frontier        KIND [PARENT]                             -> ref<TAB>title per line
   fetch           REF                                       -> fields, blank line, body
   claim           REF                                       -> ok
