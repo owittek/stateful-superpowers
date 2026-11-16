@@ -42,7 +42,10 @@ Dispatch a `general-purpose` subagent, filling the template at [code-reviewer.md
 **3. Act on feedback:**
 - Fix Critical issues immediately
 - Fix Important issues before proceeding
-- Note Minor issues for later
+- Note Minor issues for later: `../finishing-a-development-branch/scripts/followup add "<issue>" --source review` by its
+  absolute path, from the working tree you're executing in, then say "Noted as
+  follow-up N." (Inside subagent-driven-development or executing-plans,
+  ledger them instead; their finish adds them.)
 - Push back if reviewer is wrong (with reasoning)
 
 ## Example

@@ -1,16 +1,18 @@
 ---
 name: handoff
-description: Compact the current conversation into a handoff document for another agent to pick up. Use as a context-hygiene compaction tool when a long exploration/planning/orchestration session is bloating - especially at the build -> review/refactor/adjust boundary - to produce a clean resume doc so a fresh session starts lean.
+description: Compact the current conversation into a handoff document for another agent to pick up. Use when moving to a new harness, a new directory, a colleague, forking a side task mid-phase, or carrying reasoning not yet captured in a spec, plan or ticket.
 argument-hint: "What will the next session be used for?"
 ---
 
 Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows) - not the current workspace.
 
-Primary use: compact a long exploration / planning / orchestration session — especially at the **build → review/refactor/adjust boundary** — into a clean resume doc so a fresh session starts lean. Reference CONTEXT.md and docs/adr/ by path (do not duplicate them); the "suggested skills" section should point at the superpowers skill that resumes the work (e.g. improving-architecture, systematic-debugging, receiving-code-review).
+Use it when the work moves (a new harness, a new directory, a colleague, a side task forked mid-phase) or when reasoning is not yet captured in a spec, plan or ticket. Reference CONTEXT.md and docs/adr/ by path (do not duplicate them); the "suggested skills" section should point at the superpowers skill that resumes the work (e.g. improving-architecture, systematic-debugging, receiving-code-review).
 
 Include a "suggested skills" section in the document, which suggests superpowers skills that the agent should invoke to resume the work (in `Use superpowers:<skill>` form), e.g. `Use superpowers:improving-architecture`, `Use superpowers:systematic-debugging`, `Use superpowers:receiving-code-review`.
 
-Do not duplicate content already captured in other artifacts (PRDs, plans, CONTEXT.md, ADRs in `docs/adr/`, commits, diffs). Reference them by path or URL instead.
+Do not duplicate content already captured in other artifacts (PRDs, plans, CONTEXT.md, ADRs in `docs/adr/`, commits, diffs). Reference them by path or URL instead. With a tracker configured, finished thinking belongs in the spec and tickets; the handoff carries only what those cannot.
+
+Do not copy open follow-ups into the document: point at `.superpowers/followups.md` (`followup list --open`). List them in the document only when the move leaves this repo or machine.
 
 Redact any sensitive information, such as API keys, passwords, or personally identifiable information.
 

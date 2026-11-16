@@ -1,0 +1,923 @@
+#!/usr/bin/env bash
+# Tracker port: the operations behind which the issue tracker's backend is
+# hidden (register-parent, publish-ticket, frontier, fetch, claim, resolve,
+# comment, find, init). Skills call this instead of re-deriving tracker
+# incantations, so one caller cannot drift from another.
+#
+# The backend is the H1 of docs/agents/issue-tracker.md:
+#   "# Issue tracker: Local Markdown"  -> files under docs/superpowers/tickets/
+#   "# Issue tracker: GitHub"          -> GitHub Issues through gh
+# Any other H1 means "other": this script refuses and the skills follow the
+# config's prose by hand. No config: every op but init fails with "no tracker
+# configured: run tracker init". `init local|github` writes that backend's
+# config (uncommitted) and leaves one for the same backend untouched; it never
+# overwrites another backend's config. `init github` also creates the kind
+# labels (spec, ticket, followup, followups) and, when the repo has issues
+# disabled, prints a one-line hint on stderr rather than changing settings.
+#
+# Local Markdown layout. One directory per parent,
+# docs/superpowers/tickets/<parent-slug>/, holding 00-<kind>.md (the parent)
+# and NN-<slug>.md (its children, numbered from 01). A ref is
+# "<parent-slug>/<NN>"; "<parent-slug>/00" is the parent. Each file is a title
+# line "# NN: <title>", a blank line, a header block of "Key: value" lines, a
+# blank line, then the body. The header block is the tracker's state (ADR
+# 0002: the tracker holds graph and state, never content): Kind, Parent,
+# Blocked by, Status, Assignee. Status is ready | claimed | done on a child and
+# open on the parent. The body is what the publisher wrote and is never
+# rewritten; comments append under "## Comments".
+#
+# The standing Follow-ups parent is follow-ups/00 (file
+# follow-ups/00-followups.md, kind followups, title "Follow-ups", no spec
+# pointer). `publish-ticket - followup ...` files a deferred follow-up under it,
+# registering it on first use; PARENT "-" is refused for any other kind. A
+# follow-up's body is its content (ADR 0005).
+#
+# `find KIND TEXT` lists tickets of KIND that are not done and whose title or
+# body contains TEXT (case-insensitive, literal); no match prints nothing and
+# exits 0. Callers use it to avoid publishing duplicates.
+#
+# Every op prints a machine-readable result on stdout and exits non-zero with
+# a one-line reason on stderr (2 for usage errors, 1 otherwise). claim and
+# resolve commit the one file they change so other sessions see the
+# transition; a concurrent claim surfaces as a conflict when the commits meet
+# (merge or push). Caller contract: claim needs git config user.name and
+# records it as the Assignee; resolve sets Status: done and appends
+# "Resolved by <what>" under Comments; register-parent, publish-ticket,
+# comment and init leave their changes in the work tree for the caller to
+# commit; BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
+#
+# GitHub layout. The repo is gh's default: GH_REPO when set, else the
+# checkout's remote. A ref is "#N" (input also takes "N"). A kind is a label
+# of the same name; missing labels are created on demand. Parent kinds (spec,
+# map, followups) cannot be claimed; tickets cannot be parents of tickets
+# (child kinds: ticket, decision, followup). publish-ticket validates parent,
+# body and blockers before creating anything, then creates the issue, makes it
+# a sub-issue of the parent (REST issues/P/sub_issues) and adds one native
+# blocked-by edge per blocker (REST issues/N/dependencies/blocked_by), so
+# blockers must exist first. fetch's state is done (closed), open (parent
+# kind), claimed (assigned) or ready. frontier lists open, unassigned issues of
+# KIND, PARENT's sub-issues when given, with no open blocker; it reads each
+# candidate's blocked-by list rather than issue_dependencies_summary, which
+# lags edits and closes by seconds. Issue listings lag writes too, so find and
+# an unscoped frontier may miss the last few seconds' changes. claim assigns
+# @me (a no-op when already mine, refused naming the assignees otherwise);
+# resolve comments "Resolved by <what>" and closes. The standing Follow-ups
+# parent is the oldest open issue labelled followups titled "Follow-ups",
+# created on first use. gh missing or unauthenticated fails every op with a
+# one-line reason; so does any gh error.
+#
+# -C DIR runs as if started in DIR, the way git -C does, so a caller working
+# on another checkout or worktree needs no `cd DIR ;` prefix. Relative file
+# arguments then resolve against DIR.
+#
+# Usage: tracker [-C DIR] <op> [args]   (run with no arguments for the op list)
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: tracker [-C DIR] <op> [args]
+  register-parent KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]  -> ref
+  publish-ticket  PARENT|- KIND TITLE BODY_FILE [BLOCKER...] -> ref
+  frontier        KIND [PARENT]                             -> ref<TAB>title per line
+  fetch           REF                                       -> fields, blank line, body
+  claim           REF                                       -> ok
+  resolve         REF WHAT                                  -> ok
+  comment         REF TEXT_FILE                             -> ok
+  find            KIND TEXT                                 -> ref<TAB>title per line
+  init            local|github                              -> ok
+EOF
+  exit 2
+}
+
+die() {
+  echo "$*" >&2
+  exit 1
+}
+
+# --- shared helpers ---------------------------------------------------------
+
+# slugify TITLE -> lowercase, [a-z0-9] runs joined by "-", at most 60 chars
+slugify() {
+  local slug
+  slug=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-60 | sed -E 's/-+$//')
+  [ -n "$slug" ] || die "cannot derive a slug from title: $1"
+  printf '%s\n' "$slug"
+}
+
+# resolve_ref REF -> absolute path of the ref's file, or die. Accepts
+# "<slug>/NN" and "<slug>/NN-<anything>", with or without the tickets-dir
+# prefix and the ".md" suffix, so a pasted filename works as a ref.
+resolve_ref() {
+  local ref=$1 rel dir nn file
+  rel=${ref#"$TICKETS"/}
+  rel=${rel#docs/superpowers/tickets/}
+  rel=${rel%.md}
+  case "$rel" in
+    */[0-9][0-9] | */[0-9][0-9]-*) ;;
+    *) die "no such ref: $ref" ;;
+  esac
+  dir=${rel%%/*}
+  nn=${rel#*/}
+  nn=${nn:0:2}
+  file=$(printf '%s\n' "$TICKETS/$dir/$nn"-*.md | head -n 1)
+  [ -f "$file" ] || die "no such ref: $ref"
+  printf '%s\n' "$file"
+}
+
+# canonical_ref FILE -> "<slug>/NN"
+canonical_ref() {
+  local base
+  base=$(basename "$1")
+  printf '%s/%s\n' "$(basename "$(dirname "$1")")" "${base:0:2}"
+}
+
+# next_number DIR -> the next zero-padded child number in DIR
+next_number() {
+  local max=0 f n
+  for f in "$1"/[0-9][0-9]-*.md; do
+    [ -e "$f" ] || continue
+    n=$(basename "$f")
+    n=$((10#${n:0:2}))
+    if [ "$n" -gt "$max" ]; then max=$n; fi
+  done
+  [ "$max" -lt 99 ] || die "$(basename "$1") already has 99 children"
+  printf '%02d\n' "$((max + 1))"
+}
+
+ensure_trailing_newline() {
+  if [ -s "$1" ] && [ -n "$(tail -c 1 "$1")" ]; then echo >>"$1"; fi
+}
+
+# add_child PARENT_FILE CHILD_FILENAME -> append "- CHILD_FILENAME" to the
+# list under the parent's "## Tickets" heading, after its last item; create
+# the heading at the end of the file when it is missing
+add_child() {
+  local file=$1 tmp="$1.tmp"
+  awk -v line="- $2" '
+    { lines[NR] = $0 }
+    /^## Tickets$/ && !start { start = NR }
+    END {
+      if (!start) {
+        for (i = 1; i <= NR; i++) print lines[i]
+        print ""; print "## Tickets"; print ""; print line
+        exit
+      }
+      at = start
+      for (i = start + 1; i <= NR; i++) {
+        if (lines[i] ~ /^- /) at = i
+        else if (lines[i] ~ /^## /) break
+      }
+      for (i = 1; i <= NR; i++) {
+        print lines[i]
+        if (i == at) { if (at == start) print ""; print line }
+      }
+    }
+  ' "$file" >"$tmp"
+  cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
+# title_of FILE -> the title without its "# NN: " prefix
+title_of() {
+  sed -n '1s/^# [0-9][0-9]: //p' "$1"
+}
+
+# header_field FILE KEY -> KEY's value from the header block, or ""
+header_field() {
+  awk -v key="$2: " '
+    NR <= 2 { next }
+    /^$/ { exit }
+    index($0, key) == 1 { print substr($0, length(key) + 1); exit }
+  ' "$1"
+}
+
+# body_of FILE -> everything after the header block
+body_of() {
+  awk 'NR <= 2 { next } !body { if ($0 == "") body = 1; next } { print }' "$1"
+}
+
+# blockers_of FILE -> one blocker ref per line, nothing when unblocked
+blockers_of() {
+  local raw
+  raw=$(header_field "$1" "Blocked by")
+  case "$raw" in None* | "") return 0 ;; esac
+  printf '%s\n' "$raw" | tr ',' '\n' | tr -d ' ' | sed '/^$/d'
+}
+
+# set_header FILE KEY VALUE -> replace KEY's line in the header block, or add
+# one at the block's end. Never touches the body.
+set_header() {
+  local file=$1 key=$2 value=$3 tmp="$1.tmp"
+  value=${value//\\/\\\\}
+  awk -v key="$key" -v value="$value" '
+    NR <= 2 { print; next }
+    !closed && /^$/ { if (!seen) print key ": " value; closed = 1 }
+    !closed && index($0, key ": ") == 1 { print key ": " value; seen = 1; next }
+    { print }
+  ' "$file" >"$tmp"
+  cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
+# git_identity -> git user.name, or die: claim needs a name to record
+git_identity() {
+  local me
+  me=$(git -C "$ROOT" config user.name || true)
+  [ -n "$me" ] || die "git user.name is not set; claim needs an identity"
+  printf '%s\n' "$me"
+}
+
+# commit_file FILE MESSAGE -> commit this one file, leaving the rest of the
+# index and work tree alone
+commit_file() {
+  git -C "$ROOT" add -- "$1"
+  git -C "$ROOT" commit -q -m "$2" -- "$1"
+}
+
+# append_comment FILE < text -> add the text under "## Comments", dated and
+# attributed to git user.name
+append_comment() {
+  local file=$1 who
+  who=$(git -C "$ROOT" config user.name || true)
+  ensure_trailing_newline "$file"
+  grep -q '^## Comments$' "$file" || printf '\n## Comments\n' >>"$file"
+  printf '\n### %s %s\n\n' "$(date +%Y-%m-%d)" "${who:-unknown}" >>"$file"
+  cat >>"$file"
+  ensure_trailing_newline "$file"
+}
+
+# backend_of CONFIG -> the backend named by the config's H1, "" when none
+backend_of() {
+  local h1
+  h1=$(grep -m 1 '^# ' "$1" | sed 's/^# //; s/[[:space:]]*$//' || true)
+  printf '%s\n' "${h1#"Issue tracker: "}"
+}
+
+# init_config BACKEND -> write the config for BACKEND, or leave an existing
+# one for the same backend untouched; never overwrite another backend's.
+# `init github` also creates the kind labels and, when the repo has issues
+# disabled, prints a one-line hint on stderr instead of changing settings.
+init_config() {
+  local name existing write=1
+  case "$1" in
+    local) name="Local Markdown" ;;
+    github) name=GitHub ;;
+  esac
+  if [ -f "$CONFIG" ]; then
+    existing=$(backend_of "$CONFIG")
+    case "$existing" in
+      "$name") write=0 ;;
+      "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; not overwriting" ;;
+      *) die "docs/agents/issue-tracker.md already names \"$existing\"; not overwriting" ;;
+    esac
+  fi
+  [ "$1" = local ] || gh_preflight
+  if [ "$write" = 1 ]; then
+    mkdir -p "$(dirname "$CONFIG")"
+    "${1}_config" >"$CONFIG" || die "cannot write $CONFIG"
+  fi
+  [ "$1" = local ] || github_init_repo
+  echo ok
+}
+
+# local_config -> the Local Markdown config template
+local_config() {
+  cat <<'CONFIG_EOF'
+# Issue tracker: Local Markdown
+
+Issues for this repo live as markdown files under `docs/superpowers/tickets/`,
+committed with the code: one directory per parent, `00-<kind>.md` for the
+parent and `NN-<slug>.md` for each ticket. A ticket's header lines (Kind,
+Parent, Blocked by, Status, Assignee) are its state; the body below them is
+never rewritten.
+
+## Ticket operations
+
+Skills run these through
+`skills/finishing-a-development-branch/scripts/tracker [-C DIR] <op>`; edit
+the files by hand only when the script is unavailable.
+
+- **register-parent** KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]: new parent directory.
+- **publish-ticket** PARENT KIND TITLE BODY_FILE [BLOCKER...]: new `Status: ready` ticket; PARENT `-` with kind `followup` files it under the standing Follow-ups parent (`follow-ups/00`).
+- **frontier** KIND [PARENT]: ready tickets whose blockers are all done.
+- **fetch** REF: header fields and body.
+- **claim** REF: `Status: claimed`, Assignee from `git config user.name`, committed.
+- **resolve** REF WHAT: `Status: done`, "Resolved by WHAT" comment, committed.
+- **comment** REF TEXT_FILE: append under `## Comments`.
+- **find** KIND TEXT: open tickets of KIND whose title or body contains TEXT.
+CONFIG_EOF
+}
+
+# github_config -> the GitHub config template: the Local one's shape plus the
+# GitHub sections of Pocock's template
+github_config() {
+  cat <<'CONFIG_EOF'
+# Issue tracker: GitHub
+
+Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all
+operations. A kind (`spec`, `ticket`, `followup`, `followups`) is a label of
+the same name; tickets are sub-issues of their parent, with GitHub's native
+blocked-by dependencies between them.
+
+## Ticket operations
+
+Skills run these through
+`skills/finishing-a-development-branch/scripts/tracker [-C DIR] <op>`; run the
+`gh` commands below by hand only when the script is unavailable. Refs are
+`#N`.
+
+- **register-parent** KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]: new issue labelled KIND, body `Spec: <path> @ <sha>` and the summary.
+- **publish-ticket** PARENT KIND TITLE BODY_FILE [BLOCKER...]: new issue labelled KIND, sub-issue of PARENT, blocked by each BLOCKER; PARENT `-` with kind `followup` files it under the standing Follow-ups parent (the open issue labelled `followups` titled "Follow-ups", created on first use).
+- **frontier** KIND [PARENT]: open, unassigned issues labelled KIND with no open blocker, optionally only PARENT's sub-issues.
+- **fetch** REF: kind, title, state, assignee, parent, blockers and body.
+- **claim** REF: assign `@me`; a no-op when already mine, refused when assigned to someone else.
+- **resolve** REF WHAT: comment "Resolved by WHAT" and close.
+- **comment** REF TEXT_FILE: issue comment.
+- **find** KIND TEXT: open issues labelled KIND whose title or body contains TEXT.
+
+## Conventions
+
+- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
+- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
+- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
+- **Comment on an issue**: `gh issue comment <number> --body "..."`
+- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
+- **Close**: `gh issue close <number> --comment "..."`
+- **Sub-issue**: `gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>`.
+- **Blocked by**: `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where a database id is `gh api repos/<owner>/<repo>/issues/<n> --jq .id` (not the `#number` or `node_id`).
+
+Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone, and `GH_REPO=<owner>/<repo>` overrides it.
+
+## Pull requests as a triage surface
+
+**PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
+
+When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
+
+- **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
+- **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` (drop `OWNER`/`MEMBER`/`COLLABORATOR`).
+- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
+
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`.
+
+## When a skill says "publish to the issue tracker"
+
+Create a GitHub issue.
+
+## When a skill says "fetch the relevant ticket"
+
+Run `gh issue view <number> --comments`.
+CONFIG_EOF
+}
+
+# --- Local Markdown adapter -------------------------------------------------
+
+local_register_parent() {
+  local kind=$1 title=$2 spec_path=$3 sha=$4 summary_file=${5:-}
+  local slug dir file summary=""
+  slug=$(slugify "$title")
+  dir="$TICKETS/$slug"
+  [ ! -e "$dir" ] || die "parent already registered: $slug/00"
+  if [ -n "$summary_file" ]; then
+    [ -f "$summary_file" ] || die "no such file: $summary_file"
+    summary=$(cat "$summary_file")
+  fi
+  mkdir -p "$dir"
+  file="$dir/00-$kind.md"
+  {
+    printf '# 00: %s\n\n' "$title"
+    printf 'Kind: %s\nStatus: open\n\n' "$kind"
+    printf 'Spec: %s @ %s\n\n' "$spec_path" "$sha"
+    [ -z "$summary" ] || printf '%s\n\n' "$summary"
+    printf '## Tickets\n'
+  } >"$file" || die "cannot write $file"
+  printf '%s/00\n' "$slug"
+}
+
+# followups_parent -> path of the standing Follow-ups parent, registering it
+# on first use. It has kind followups, slug follow-ups, and no spec pointer.
+followups_parent() {
+  local dir="$TICKETS/follow-ups" file
+  file="$dir/00-followups.md"
+  if [ -f "$file" ]; then
+    printf '%s\n' "$file"
+    return 0
+  fi
+  [ ! -e "$dir" ] || die "follow-ups/00 is not the Follow-ups parent"
+  mkdir -p "$dir"
+  {
+    printf '# 00: Follow-ups\n\n'
+    printf 'Kind: followups\nStatus: open\n\n'
+    printf 'Standing parent for deferred follow-up tickets; never closed, points at no spec.\n\n'
+    printf '## Tickets\n'
+  } >"$file" || die "cannot write $file"
+  printf '%s\n' "$file"
+}
+
+local_publish_ticket() {
+  local parent=$1 kind=$2 title=$3 body_file=$4
+  shift 4
+  local parent_file="" parent_ref dir slug nn name file blocked="" ref blocker_file
+  if [ "$parent" = - ]; then
+    [ "$kind" = followup ] || die "parent - is only for kind followup"
+  else
+    parent_file=$(resolve_ref "$parent")
+    case "$(basename "$parent_file")" in
+      00-*) ;;
+      *) die "$parent is not a parent" ;;
+    esac
+  fi
+  [ -f "$body_file" ] || die "no such file: $body_file"
+  for ref in "$@"; do
+    blocker_file=$(resolve_ref "$ref")
+    ref=$(canonical_ref "$blocker_file")
+    blocked="${blocked:+$blocked, }$ref"
+  done
+  [ -n "$blocked" ] || blocked="None (can start immediately)"
+  # The standing parent is created only once the publish is known to succeed
+  [ -n "$parent_file" ] || parent_file=$(followups_parent)
+  parent_ref=$(canonical_ref "$parent_file")
+  dir=$(dirname "$parent_file")
+  slug=$(slugify "$title")
+  nn=$(next_number "$dir")
+  name="$nn-$slug.md"
+  file="$dir/$name"
+  {
+    printf '# %s: %s\n\n' "$nn" "$title"
+    printf 'Kind: %s\nParent: %s\nBlocked by: %s\nStatus: ready\n\n' "$kind" "$parent_ref" "$blocked"
+    cat "$body_file"
+  } >"$file" || die "cannot write $file"
+  ensure_trailing_newline "$file"
+  add_child "$parent_file" "$name"
+  canonical_ref "$file"
+}
+
+local_fetch() {
+  local file ref kind title state assignee parent blockers
+  file=$(resolve_ref "$1")
+  ref=$(canonical_ref "$file")
+  kind=$(header_field "$file" Kind)
+  title=$(title_of "$file")
+  state=$(header_field "$file" Status)
+  assignee=$(header_field "$file" Assignee)
+  parent=$(header_field "$file" Parent)
+  blockers=$(blockers_of "$file" | tr '\n' ' ' | sed 's/ $//')
+  printf 'ref: %s\nkind: %s\ntitle: %s\nstate: %s\nassignee: %s\nparent: %s\nblockers: %s\n\n' \
+    "$ref" "$kind" "$title" "$state" "${assignee:-none}" "${parent:-none}" "${blockers:-none}"
+  body_of "$file"
+}
+
+local_frontier() {
+  local kind=$1 parent_file f b bf ok
+  if [ $# -eq 2 ]; then
+    parent_file=$(resolve_ref "$2")
+    set -- "$(dirname "$parent_file")"/[0-9][0-9]-*.md
+  else
+    set -- "$TICKETS"/*/[0-9][0-9]-*.md
+  fi
+  for f in "$@"; do
+    [ -f "$f" ] || continue
+    case "$(basename "$f")" in 00-*) continue ;; esac
+    [ "$(header_field "$f" Kind)" = "$kind" ] || continue
+    [ "$(header_field "$f" Status)" = ready ] || continue
+    ok=1
+    while IFS= read -r b; do
+      [ -n "$b" ] || continue
+      bf=$(resolve_ref "$b" 2>/dev/null) || { ok=0; break; }
+      [ "$(header_field "$bf" Status)" = "done" ] || { ok=0; break; }
+    done <<<"$(blockers_of "$f")"
+    [ "$ok" = 1 ] || continue
+    printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
+  done
+}
+
+# Open tickets of KIND whose title or body contains TEXT, compared
+# case-insensitively and literally (no pattern characters). Parents count when
+# their kind matches; done tickets never do.
+local_find() {
+  local kind=$1 text=$2 f content
+  for f in "$TICKETS"/*/[0-9][0-9]-*.md; do
+    [ -f "$f" ] || continue
+    [ "$(header_field "$f" Kind)" = "$kind" ] || continue
+    [ "$(header_field "$f" Status)" != "done" ] || continue
+    # No pipe into grep -q: it stops at the first match, and a writer it cuts
+    # off would fail the pipeline under pipefail
+    content="$(title_of "$f")
+$(body_of "$f")"
+    grep -Fqi -e "$text" <<<"$content" || continue
+    printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
+  done
+}
+
+local_claim() {
+  local file ref me state assignee
+  file=$(resolve_ref "$1")
+  ref=$(canonical_ref "$file")
+  case "$(basename "$file")" in
+    00-*) die "$ref is a parent, not a ticket" ;;
+  esac
+  me=$(git_identity)
+  state=$(header_field "$file" Status)
+  assignee=$(header_field "$file" Assignee)
+  case "$state" in
+    claimed)
+      [ "$assignee" = "$me" ] || die "$ref is claimed by ${assignee:-someone else}"
+      echo ok
+      return 0
+      ;;
+    done) die "$ref is done" ;;
+  esac
+  set_header "$file" Status claimed
+  set_header "$file" Assignee "$me"
+  commit_file "$file" "chore(tracker): claim $ref"
+  echo ok
+}
+
+local_comment() {
+  local file
+  file=$(resolve_ref "$1")
+  [ -f "$2" ] || die "no such file: $2"
+  append_comment "$file" <"$2"
+  echo ok
+}
+
+local_resolve() {
+  local file ref
+  file=$(resolve_ref "$1")
+  ref=$(canonical_ref "$file")
+  set_header "$file" Status "done"
+  printf 'Resolved by %s\n' "$2" | append_comment "$file"
+  commit_file "$file" "chore(tracker): resolve $ref"
+  echo ok
+}
+
+# --- GitHub adapter ---------------------------------------------------------
+
+# gh_preflight -> die unless gh is installed and authenticated
+gh_preflight() {
+  command -v gh >/dev/null 2>&1 || die "gh is not installed; the GitHub tracker needs it"
+  gh auth status >/dev/null 2>&1 || die "gh is not authenticated: run gh auth login"
+}
+
+# gh_call ON404 ARGS... -> gh's stdout. On failure die with gh's last
+# non-empty stderr line, so every failure stays one line. ON404 handles a
+# missing issue (HTTP 404/410, or GraphQL's "Could not resolve"): "-" treats
+# it like any failure, "quiet" succeeds with no output, anything else is the
+# message to die with.
+gh_call() {
+  local on404=$1 err out status=0 msg
+  shift
+  err=$(mktemp)
+  out=$(gh "$@" 2>"$err") || status=$?
+  msg=$(sed '/^[[:space:]]*$/d' "$err" | tail -n 1)
+  rm -f "$err"
+  if [ "$status" -ne 0 ]; then
+    case "$on404:$msg" in
+      -:*) ;;
+      *"HTTP 404"* | *"HTTP 410"* | *"Could not resolve to an"*)
+        [ "$on404" = quiet ] && return 0
+        die "$on404"
+        ;;
+    esac
+    die "gh: ${msg:-gh $1 failed}"
+  fi
+  [ -z "$out" ] || printf '%s\n' "$out"
+}
+
+# ghx ARGS... -> gh_call with no special handling of a missing issue
+ghx() {
+  gh_call - "$@"
+}
+
+# gh_num REF -> the issue number of "#N" or "N", or die
+gh_num() {
+  local n=${1#\#}
+  case "$n" in
+    "" | *[!0-9]*) die "no such ref: $1" ;;
+  esac
+  printf '%s\n' "$n"
+}
+
+
+# Kinds are labels of the same name. A parent kind marks an issue that
+# tickets hang under; a child kind marks a claimable ticket.
+GH_PARENT_KINDS="spec map followups"
+GH_CHILD_KINDS="ticket decision followup"
+
+# in_list WORD LIST -> success when WORD is one of LIST's space-separated words
+in_list() {
+  case " $2 " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+# gh_kind_of LABELS -> the first comma-separated label that is a known kind,
+# else the first label, else ""
+gh_kind_of() {
+  local label first="" IFS=,
+  for label in $1; do
+    [ -n "$first" ] || first=$label
+    if in_list "$label" "$GH_PARENT_KINDS $GH_CHILD_KINDS"; then
+      printf '%s\n' "$label"
+      return 0
+    fi
+  done
+  printf '%s\n' "$first"
+}
+
+# gh_issue N -> five lines: state, assignee logins (comma-separated), labels
+# (comma-separated), title, database id; or die "no such ref: #N"
+gh_issue() {
+  gh_call "no such ref: #$1" api "repos/{owner}/{repo}/issues/$1" --jq \
+    '"\(.state)\n\(.assignees | map(.login) | join(","))\n\(.labels | map(.name) | join(","))\n\(.title)\n\(.id)"'
+}
+
+# gh_ensure_label KIND -> create the kind label unless it exists
+gh_ensure_label() {
+  local err status=0 msg
+  err=$(mktemp)
+  gh label create "$1" --description "Tracker kind: $1" >/dev/null 2>"$err" || status=$?
+  msg=$(sed '/^[[:space:]]*$/d' "$err" | tail -n 1)
+  rm -f "$err"
+  [ "$status" -eq 0 ] && return 0
+  case "$msg" in
+    *"already exists"*) return 0 ;;
+  esac
+  die "gh: ${msg:-cannot create label $1}"
+}
+
+# gh_create KIND TITLE BODY_FILE -> "N<TAB>id" of a new issue labelled KIND
+gh_create() {
+  gh_ensure_label "$1"
+  ghx api --method POST "repos/{owner}/{repo}/issues" -f title="$2" -F body=@"$3" \
+    -f "labels[]=$1" --jq '"\(.number)\t\(.id)"'
+}
+
+github_register_parent() {
+  local kind=$1 title=$2 spec_path=$3 sha=$4 summary_file=${5:-} body created
+  if [ -n "$summary_file" ]; then
+    [ -f "$summary_file" ] || die "no such file: $summary_file"
+  fi
+  body=$(mktemp)
+  {
+    printf 'Spec: %s @ %s\n' "$spec_path" "$sha"
+    [ -z "$summary_file" ] || { printf '\n'; cat "$summary_file"; }
+  } >"$body"
+  created=$(gh_create "$kind" "$title" "$body") || { rm -f "$body"; exit 1; }
+  rm -f "$body"
+  printf '#%s\n' "${created%%$'\t'*}"
+}
+
+github_publish_ticket() {
+  local parent=$1 kind=$2 title=$3 body_file=$4
+  shift 4
+  local pnum="" info ref n ids="" created num id err msg
+  if [ "$parent" = - ]; then
+    [ "$kind" = followup ] || die "parent - is only for kind followup"
+  else
+    pnum=$(gh_num "$parent")
+    info=$(gh_issue "$pnum")
+    if in_list "$(gh_kind_of "$(sed -n 3p <<<"$info")")" "$GH_CHILD_KINDS"; then
+      die "#$pnum is not a parent"
+    fi
+  fi
+  [ -f "$body_file" ] || die "no such file: $body_file"
+  for ref in "$@"; do
+    n=$(gh_num "$ref")
+    info=$(gh_issue "$n")
+    ids="$ids $(sed -n 5p <<<"$info")"
+  done
+  # The standing parent is created only once the publish is known to succeed
+  [ -n "$pnum" ] || pnum=$(github_followups_parent)
+  created=$(gh_create "$kind" "$title" "$body_file")
+  num=${created%%$'\t'*}
+  id=${created#*$'\t'}
+  # The issue exists from here on: a failure names it so the caller can
+  # finish the wiring by hand instead of publishing a duplicate
+  err=$(mktemp)
+  (
+    ghx api --method POST "repos/{owner}/{repo}/issues/$pnum/sub_issues" -F sub_issue_id="$id" >/dev/null
+    for id in $ids; do
+      ghx api --method POST "repos/{owner}/{repo}/issues/$num/dependencies/blocked_by" -F issue_id="$id" >/dev/null
+    done
+  ) 2>"$err" || { msg=$(tail -n 1 "$err"); rm -f "$err"; die "created #$num but could not link it: $msg"; }
+  rm -f "$err"
+  printf '#%s\n' "$num"
+}
+
+github_fetch() {
+  local n info state assignees labels kind parent blockers body
+  n=$(gh_num "$1")
+  info=$(gh_issue "$n")
+  state=$(sed -n 1p <<<"$info")
+  assignees=$(sed -n 2p <<<"$info")
+  labels=$(sed -n 3p <<<"$info")
+  kind=$(gh_kind_of "$labels")
+  if [ "$state" = closed ]; then
+    state="done"
+  elif in_list "$kind" "$GH_PARENT_KINDS"; then
+    state=open
+  elif [ -n "$assignees" ]; then
+    state=claimed
+  else
+    state=ready
+  fi
+  parent=$(gh_call quiet api "repos/{owner}/{repo}/issues/$n/parent" --jq '"#\(.number)"')
+  blockers=$(ghx api --paginate "repos/{owner}/{repo}/issues/$n/dependencies/blocked_by" --jq '.[] | "#\(.number)"' | tr '\n' ' ' | sed 's/ $//')
+  body=$(ghx api "repos/{owner}/{repo}/issues/$n" --jq '.body // ""')
+  printf 'ref: #%s\nkind: %s\ntitle: %s\nstate: %s\nassignee: %s\nparent: %s\nblockers: %s\n\n' \
+    "$n" "${kind:-none}" "$(sed -n 4p <<<"$info")" "$state" "${assignees:-none}" "${parent:-none}" "${blockers:-none}"
+  [ -z "$body" ] || printf '%s\n' "$body"
+}
+
+
+# json_string TEXT -> TEXT as a JSON string literal, for splicing into a jq
+# filter (gh's --jq takes no --arg)
+json_string() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\t'/\\t}
+  s=${s//$'\r'/\\r}
+  printf '"%s"\n' "$s"
+}
+
+# gh_open_blockers N -> how many of N's blocked-by issues are open. Read from
+# the dependency list, not issue_dependencies_summary: the summary lags edits
+# and closes by seconds.
+gh_open_blockers() {
+  ghx api --paginate "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" \
+    --jq 'map(select(.state == "open")) | length' | awk '{ s += $1 } END { print s + 0 }'
+}
+
+# Listings (sub-issues, issues by label) lag writes by seconds, so each
+# candidate's state and assignees are re-read from the issue itself.
+github_frontier() {
+  local kind=$1 lit pnum n title info filter candidates blocked
+  lit=$(json_string "$kind")
+  filter=".[] | select(.pull_request == null and .state == \"open\" and (.assignees | length) == 0 and (.labels | map(.name) | index($lit))) | \"\(.number)\t\(.title)\""
+  if [ $# -eq 2 ]; then
+    pnum=$(gh_num "$2")
+    gh_issue "$pnum" >/dev/null
+    set -- "repos/{owner}/{repo}/issues/$pnum/sub_issues?per_page=100"
+  else
+    set -- "repos/{owner}/{repo}/issues?state=open&per_page=100&labels=$kind"
+  fi
+  candidates=$(ghx api --paginate "$1" --jq "$filter" | sort -n) || exit 1
+  while IFS=$'\t' read -r n title; do
+    [ -n "$n" ] || continue
+    info=$(gh_issue "$n") || exit 1
+    [ "$(sed -n 1p <<<"$info")" = open ] || continue
+    [ -z "$(sed -n 2p <<<"$info")" ] || continue
+    blocked=$(gh_open_blockers "$n") || exit 1
+    [ "$blocked" = 0 ] || continue
+    printf '#%s\t%s\n' "$n" "$title"
+  done <<<"$candidates"
+}
+
+github_claim() {
+  local n info assignees me
+  n=$(gh_num "$1")
+  info=$(gh_issue "$n")
+  if in_list "$(gh_kind_of "$(sed -n 3p <<<"$info")")" "$GH_PARENT_KINDS"; then
+    die "#$n is a parent, not a ticket"
+  fi
+  [ "$(sed -n 1p <<<"$info")" = open ] || die "#$n is done"
+  me=$(ghx api user --jq .login)
+  assignees=$(sed -n 2p <<<"$info")
+  if [ -n "$assignees" ]; then
+    in_list "$me" "${assignees//,/ }" || die "#$n is claimed by ${assignees//,/, }"
+    echo ok
+    return 0
+  fi
+  ghx issue edit "$n" --add-assignee @me >/dev/null
+  echo ok
+}
+
+github_comment() {
+  local n
+  n=$(gh_num "$1")
+  [ -f "$2" ] || die "no such file: $2"
+  gh_call "no such ref: #$n" issue comment "$n" --body-file "$2" >/dev/null
+  echo ok
+}
+
+github_resolve() {
+  local n info
+  n=$(gh_num "$1")
+  info=$(gh_issue "$n")
+  ghx issue comment "$n" --body "Resolved by $2" >/dev/null
+  [ "$(sed -n 1p <<<"$info")" != open ] || ghx issue close "$n" >/dev/null
+  echo ok
+}
+
+
+# gh_find_followups_parent -> number of the oldest open issue labelled
+# followups and titled "Follow-ups", or nothing. The listing lags, so each
+# hit is confirmed open on the issue itself.
+gh_find_followups_parent() {
+  local n hits info
+  hits=$(ghx api --paginate "repos/{owner}/{repo}/issues?state=open&labels=followups&per_page=100" \
+    --jq '.[] | select(.pull_request == null and .title == "Follow-ups") | .number' | sort -n) || exit 1
+  for n in $hits; do
+    info=$(gh_issue "$n") || exit 1
+    if [ "$(sed -n 1p <<<"$info")" = open ]; then
+      printf '%s\n' "$n"
+      return 0
+    fi
+  done
+}
+
+# github_followups_parent -> number of the standing Follow-ups parent,
+# registering it on first use. After creating it, wait (up to ~30s) until
+# the label listing shows it, so the next publish finds it instead of
+# creating a second one.
+github_followups_parent() {
+  local n body created i
+  # Command substitutions do not inherit set -e in bash 3.2: fail explicitly
+  n=$(gh_find_followups_parent) || exit 1
+  if [ -n "$n" ]; then
+    printf '%s\n' "$n"
+    return 0
+  fi
+  body=$(mktemp)
+  printf 'Standing parent for deferred follow-up tickets; never closed, points at no spec.\n' >"$body"
+  created=$(gh_create followups "Follow-ups" "$body") || { rm -f "$body"; exit 1; }
+  rm -f "$body"
+  n=${created%%$'\t'*}
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    [ "$(gh_find_followups_parent)" != "$n" ] || break
+    [ "$i" = 15 ] || sleep 2
+  done
+  printf '%s\n' "$n"
+}
+
+# Open issues of KIND whose title or body contains TEXT, compared
+# case-insensitively (ASCII) and literally. Built on the label listing, so a
+# write from the last few seconds may be missed.
+github_find() {
+  local kind=$1 klit tlit
+  klit=$(json_string "$kind")
+  tlit=$(json_string "$2")
+  ghx api --paginate "repos/{owner}/{repo}/issues?state=open&per_page=100&labels=$kind" --jq \
+    ".[] | select(.pull_request == null and (.labels | map(.name) | index($klit)) and ((.title + \"\n\" + (.body // \"\")) | ascii_downcase | contains($tlit | ascii_downcase))) | \"#\(.number)\t\(.title)\"" \
+    | sort -t '#' -k 2 -n
+}
+
+
+# github_init_repo -> create the kind labels; hint on stderr when the repo
+# has issues disabled (settings are the human's call, never changed here)
+github_init_repo() {
+  local info kind
+  info=$(ghx api "repos/{owner}/{repo}" --jq '"\(.has_issues) \(.full_name)"')
+  if [ "${info%% *}" = false ]; then
+    echo "issues are disabled on ${info#* }; enable them with: gh repo edit ${info#* } --enable-issues" >&2
+  fi
+  for kind in spec ticket followup followups; do
+    gh_ensure_label "$kind"
+  done
+}
+
+# --- dispatch ---------------------------------------------------------------
+
+if [ "${1:-}" = "-C" ]; then
+  [ -d "${2:-}" ] || { echo "bad -C directory: ${2:-}" >&2; exit 2; }
+  cd "$2"
+  shift 2
+fi
+[ $# -ge 1 ] || usage
+op=$1
+shift
+case "$op" in
+  register-parent) [ $# -ge 4 ] && [ $# -le 5 ] || usage ;;
+  publish-ticket) [ $# -ge 4 ] || usage ;;
+  frontier) [ $# -ge 1 ] && [ $# -le 2 ] || usage ;;
+  fetch | claim) [ $# -eq 1 ] || usage ;;
+  resolve | comment) [ $# -eq 2 ] || usage ;;
+  find) [ $# -eq 2 ] && [ -n "$2" ] || usage ;;
+  init) [ "$*" = local ] || [ "$*" = github ] || usage ;;
+  *) usage ;;
+esac
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git work tree"
+CONFIG="$ROOT/docs/agents/issue-tracker.md"
+TICKETS="$ROOT/docs/superpowers/tickets"
+if [ "$op" = init ]; then
+  init_config "$1"
+  exit 0
+fi
+[ -f "$CONFIG" ] || die "no tracker configured: run tracker init"
+
+backend=$(backend_of "$CONFIG")
+case "$backend" in
+  "Local Markdown") adapter=local ;;
+  GitHub)
+    adapter=github
+    gh_preflight
+    ;;
+  "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker" ;;
+  *) die "issue tracker \"$backend\" is not supported by this script; follow docs/agents/issue-tracker.md by hand" ;;
+esac
+
+"${adapter}_${op//-/_}" "$@"

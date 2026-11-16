@@ -97,6 +97,12 @@ IF reviewer suggests "implementing properly":
 
 **your human partner's rule:** "You and reviewer both report to me. If we don't need this feature, don't add it."
 
+**Real but out of scope:** feedback that is correct but outside this change
+goes on the follow-up list instead of into this change: `../finishing-a-development-branch/scripts/followup add "<item>" --source review`
+by its absolute path, from the working tree you're executing in. Reply
+"Noted as follow-up N." (Inside subagent-driven-development or
+executing-plans, ledger it instead; their finish adds it.)
+
 ## Implementation Order
 
 ```

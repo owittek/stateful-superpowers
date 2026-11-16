@@ -31,6 +31,14 @@ if [ -r "$skill_md" ]; then
   done
 fi
 
+# The injected skill text can't name helpers relative to its own directory:
+# the agent never sees where it was read from. Substitute the plugin's skills
+# directory (stateful-superpowers insertion point) so routing lines carry an
+# absolute path. CLAUDE_PLUGIN_ROOT is absolute under Claude Code; elsewhere
+# fall back to the path this script was reached through.
+skills_dir="${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/skills"
+using_superpowers_content="${using_superpowers_content//\{\{SKILLS_DIR\}\}/$skills_dir}"
+
 # Escape string for JSON embedding using bash parameter substitution.
 # Each ${s//old/new} is a single C-level pass - orders of magnitude
 # faster than the character-by-character loop this replaces. The result
@@ -47,6 +55,33 @@ escape_for_json() {
 
 escape_for_json "$using_superpowers_content"
 session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the full content of your 'superpowers:using-superpowers' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_superpowers_escaped}\n</EXTREMELY_IMPORTANT>"
+
+# Compaction reminder (stateful-superpowers): after a compaction only, one
+# line with the open follow-up count from the project's follow-up list.
+# The list file is counted first, and only when it has open items is stdin
+# read for the SessionStart JSON's "source" (Claude Code: startup, resume,
+# clear or compact). A repo without a list never touches stdin. stdin is
+# skipped when it's a terminal. The read stops at the first "}" rather than
+# EOF, so a harness that keeps the pipe open still delivers the source
+# ("source" is a top-level string field, ahead of any nested object), and
+# -t gives up when nothing arrives (bash 3.2 drops a timed-out read's data;
+# zsh's -t only waits for the first byte). Builtins only, like the rest of
+# this script.
+followups_file="${CLAUDE_PROJECT_DIR:-}/.superpowers/followups.md"
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -r "$followups_file" ]; then
+  open_followups=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ $line == '- [ ] '* ]] && open_followups=$((open_followups + 1))
+  done < "$followups_file"
+  if [ "$open_followups" -gt 0 ] && [ ! -t 0 ]; then
+    hook_input=""
+    IFS= read -r -t 1 -d '}' hook_input || true
+    hook_input="${hook_input//[[:space:]]/}"
+    if [[ $hook_input == *'"source":"compact"'* ]]; then
+      session_context="${session_context}\n\nOpen follow-ups: ${open_followups} in .superpowers/followups.md (\`followup list --open --all\`)."
+    fi
+  fi
+fi
 
 # Output context injection as JSON.
 # Cursor hooks expect additional_context (snake_case).
