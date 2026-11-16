@@ -53,6 +53,18 @@ reference now says to search one distinctive word at a time. Rerun c2 on a
 fresh fixture: `find "retry"`, `"timeout"` and `"fetch"` each matched
 `follow-ups/01` on the first try. No new ticket.
 
+## Final review fixes
+
+A fresh Opus reviewer read the whole branch. It found that `followup list`
+exits 1 on a detached HEAD, which would have broken the clean path there.
+Step 0 now skips silently on non-zero exit too. Rerun on a fresh
+detached-HEAD fixture: exit 1, nothing about follow-ups said, `BRANCH`/`TICKET`
+empty with no stderr, 2-option menu as before. The same review led to text-only
+fixes, none of them rerun: Option 1 reports a tracker refusal (a GitHub ref
+before #13) and says to resolve by hand; Option 2 commits and pushes a local
+ticket's PR-URL comment; the discard path asks keep or drop below the
+confirmation request and runs `done` only after `discard`.
+
 ## Not exercised
 
 The no-config `tracker init` offer, the discard keep-or-drop path, a GitHub
