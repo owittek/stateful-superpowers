@@ -139,6 +139,28 @@ assert_fails() {
   fi
 }
 
+# gh_unauth_env -> point gh at an empty config and drop token variables, so
+# it reports itself unauthenticated without touching the real login. Call in
+# a subshell.
+gh_unauth_env() {
+  mkdir -p "$TEST_ROOT/gh-unauth"
+  export GH_CONFIG_DIR="$TEST_ROOT/gh-unauth"
+  unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+}
+
+# path_without_gh -> drop every PATH entry holding gh, keeping bash and git
+# reachable through a directory of symlinks. Call in a subshell.
+path_without_gh() {
+  local bin="$TEST_ROOT/no-gh-bin" dir new="" IFS=:
+  mkdir -p "$bin"
+  ln -sf "$(command -v bash)" "$bin/bash"
+  ln -sf "$(command -v git)" "$bin/git"
+  for dir in $PATH; do
+    [ -x "$dir/gh" ] || new="${new:+$new:}$dir"
+  done
+  export PATH="$bin:$new"
+}
+
 finish() {
   if [ "$FAILURES" -gt 0 ]; then
     echo "STATUS: FAILED ($FAILURES failure(s))"

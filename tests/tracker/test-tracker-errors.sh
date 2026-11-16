@@ -53,8 +53,19 @@ assert_every_op_fails "$jira" '"Jira" is not supported' "on an unknown backend r
 noh1=$(make_repo noh1)
 printf 'Just prose, no heading.\n' >"$noh1/docs/agents/issue-tracker.md"
 assert_every_op_fails "$noh1" "no H1 naming the issue tracker" "without a backend H1 refuses"
+
+echo "tracker: GitHub backend without a usable gh"
 github=$(make_repo github "Issue tracker: GitHub")
-assert_every_op_fails "$github" "not implemented yet" "on the GitHub backend reports it is not implemented"
+(
+  gh_unauth_env
+  assert_every_op_fails "$github" "gh is not authenticated: run gh auth login" "with gh unauthenticated fails loudly"
+  [ "$FAILURES" -eq 0 ]
+) || FAILURES=$((FAILURES + 1))
+(
+  path_without_gh
+  assert_every_op_fails "$github" "gh is not installed" "without gh fails loudly"
+  [ "$FAILURES" -eq 0 ]
+) || FAILURES=$((FAILURES + 1))
 
 echo "tracker: unknown refs"
 local=$(make_repo local)

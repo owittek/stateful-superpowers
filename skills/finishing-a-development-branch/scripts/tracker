@@ -454,6 +454,35 @@ local_resolve() {
   echo ok
 }
 
+# --- GitHub adapter ---------------------------------------------------------
+
+# gh_preflight -> die unless gh is installed and authenticated
+gh_preflight() {
+  command -v gh >/dev/null 2>&1 || die "gh is not installed; the GitHub tracker needs it"
+  gh auth status >/dev/null 2>&1 || die "gh is not authenticated: run gh auth login"
+}
+
+# ghx ARGS... -> gh's stdout; on failure die with gh's last non-empty stderr
+# line, so every failure stays one line
+ghx() {
+  local err out status=0 msg
+  err=$(mktemp)
+  out=$(gh "$@" 2>"$err") || status=$?
+  msg=$(sed '/^[[:space:]]*$/d' "$err" | tail -n 1)
+  rm -f "$err"
+  [ "$status" -eq 0 ] || die "gh: ${msg:-gh $1 failed}"
+  [ -z "$out" ] || printf '%s\n' "$out"
+}
+
+# gh_num REF -> the issue number of "#N" or "N", or die
+gh_num() {
+  local n=${1#\#}
+  case "$n" in
+    "" | *[!0-9]*) die "no such ref: $1" ;;
+  esac
+  printf '%s\n' "$n"
+}
+
 # --- dispatch ---------------------------------------------------------------
 
 if [ "${1:-}" = "-C" ]; then
@@ -487,7 +516,10 @@ fi
 backend=$(backend_of "$CONFIG")
 case "$backend" in
   "Local Markdown") adapter=local ;;
-  GitHub) die "GitHub backend is not implemented yet; run gh by hand per docs/agents/issue-tracker.md" ;;
+  GitHub)
+    adapter=github
+    gh_preflight
+    ;;
   "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker" ;;
   *) die "issue tracker \"$backend\" is not supported by this script; follow docs/agents/issue-tracker.md by hand" ;;
 esac
