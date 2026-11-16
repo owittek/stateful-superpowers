@@ -57,6 +57,8 @@ recorded decisions, and writes newly resolved terms to `CONTEXT.md` and
 hard-to-reverse decisions to `docs/adr/` as they settle. You still own
 the questions; capture mode adds no rounds. An echo that conflicts with
 the glossary or an ADR is something to raise in your first message.
+If the project is sizeable and has no `CONTEXT.md`, offer
+`superpowers:syncing-context` once, after the design is approved.
 
 ## Your First Message
 

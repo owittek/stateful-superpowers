@@ -9,8 +9,6 @@ description: Relentless interview engine that walks the decision tree round by r
 
 Interview the user relentlessly until you reach a shared understanding. Map this as a **decision tree**: every decision branches into the decisions that hang off it.
 
-**Round 0 — the why.** If the user hasn't said why they want this, even if you can guess, ask that first: one open question in their own terms, with no recommended answer and nothing to pick from. Options steer, and their own words carry intent yours can't. The why is the root of the tree; every later recommendation should follow from it. Skip round 0 when the why is already stated, or when the caller (e.g. brainstorming) already asked it.
-
 Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled — the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
 
 Each question is formatted like so:

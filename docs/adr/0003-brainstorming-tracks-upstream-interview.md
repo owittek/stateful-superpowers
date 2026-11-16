@@ -28,3 +28,9 @@ points need checking (see `docs/upstream-sync.md`). `grilling` now has two
 callers using it differently: `improving-architecture` uses its interview,
 `brainstorming` uses its capture rules only. ADR 0001 still holds; what
 changed is how much of the interview engine brainstorming reuses.
+
+The two front-ends now interview differently on purpose. New behaviour
+starts with unclear intent, and options steer it, so brainstorming asks
+why first, one question at a time. A refactor starts with known intent
+(this code hurts, and behaviour must be preserved) and a wide decision tree
+over seams and candidates, so improving-architecture batches frontier rounds.
