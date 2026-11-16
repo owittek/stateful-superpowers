@@ -107,6 +107,14 @@ The step at the start of finishing where each open follow-up is done now,
 deferred to a ticket, or dropped, with the human.
 _Avoid_: triage, cleanup pass
 
+**Pattern sweep**:
+The review pass at the start of finishing that lists the recurring patterns a
+branch's diff introduces or touches, checks each against existing helpers and
+sibling instances, and adds the inconsistent ones to the follow-up list with a
+canonical choice. Doing one now means shared primitive + enforcement +
+migration, not a one-site fix.
+_Avoid_: style review, consistency lint, audit
+
 **Tracker port**:
 The operations (register-parent, publish-ticket, frontier, fetch, claim,
 resolve, comment, find, init) behind which the issue tracker's backend is hidden; executed
