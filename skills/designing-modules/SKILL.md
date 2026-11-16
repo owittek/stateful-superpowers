@@ -56,6 +56,12 @@ That is `superpowers:improving-architecture`'s discovery step; running it here
 blurs the two skills together and buys a survey nobody asked for. Greenfield
 with nothing abutting: skip this step.
 
+One search beyond the abutting code is in scope: when the new structure
+repeats a pattern the codebase already has (rendering a value, mapping an
+error, fetching data), look for an existing helper or shared component that
+does it, and reuse or extract it rather than designing a second one. One
+lookup per pattern, not a survey.
+
 ### 3. Propose the structure
 
 Present the **Architecture section**:
