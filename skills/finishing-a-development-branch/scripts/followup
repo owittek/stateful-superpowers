@@ -125,6 +125,43 @@ op_add() {
   printf '%s\n' "$n"
 }
 
+op_list() {
+  local open=false all=false branch=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --open) open=true ;;
+      --all) all=true ;;
+      *) usage ;;
+    esac
+    shift
+  done
+  resolve_list
+  [ "$all" = true ] || branch=$(current_branch)
+  [ -f "$LIST" ] || return 0
+  # Match on the exact "] [branch] " tag after the number, so branch feat
+  # never shows feat-x's items and text cannot fake a tag.
+  awk -v open="$open" -v branch="$branch" '
+    !/^- \[[ x]\] [0-9]+\. \[/ { next }
+    open == "true" && substr($0, 1, 6) != "- [ ] " { next }
+    branch != "" {
+      rest = substr($0, 7); sub(/^[0-9]+\. /, "", rest)
+      tag = "[" branch "] "
+      if (substr(rest, 1, length(tag)) != tag) next
+    }
+    { print }
+  ' "$LIST"
+}
+
+op_count() {
+  [ $# -eq 0 ] || usage
+  resolve_list
+  if [ -f "$LIST" ]; then
+    awk '/^- \[ \] [0-9]+\. / { n++ } END { print n + 0 }' "$LIST"
+  else
+    echo 0
+  fi
+}
+
 # --- dispatch ---
 
 if [ "${1:-}" = "-C" ]; then
@@ -138,5 +175,7 @@ op=$1
 shift
 case "$op" in
   add) op_add "$@" ;;
+  list) op_list "$@" ;;
+  count) op_count "$@" ;;
   *) usage ;;
 esac
