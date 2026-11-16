@@ -39,8 +39,8 @@ Key principles (full list in [LANGUAGE.md](LANGUAGE.md)):
 Take the design from your caller — `superpowers:brainstorming`'s chosen
 approach, or `superpowers:improving-architecture`'s chosen candidate.
 
-**Do not run an interview.** Both front-ends grill before they call you;
-re-asking what the frontier already settled is exactly the friction
+**Do not run an interview.** Both front-ends interview the user before they call you;
+re-asking what that interview already settled is exactly the friction
 `superpowers:grilling` was extracted to kill. If you were invoked standalone
 against an idea nobody has grilled, stop, invoke `superpowers:grilling`, and
 come back with the resolved design.
