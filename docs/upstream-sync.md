@@ -12,7 +12,7 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 
 - **Plugin manifests** (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`, `.kimi-plugin/`, `.antigravity-plugin/`, `.devin-plugin/`, `.hermes-plugin/`, `.muse-plugin/`, `package.json`, `gemini-extension.json`): keep the fork's name/description/author, take upstream's structural changes, then bump to the fork's own version line (0.x, not upstream's 7.x). New harness manifests arrive with upstream's identity and must be rebranded; `.muse-plugin/plugin.json` lists skills explicitly, so add the fork-only skills. The Antigravity and Devin manifest tests pin the name — keep them on `stateful-superpowers`.
 - **README install sections**: every install target points at `owittek/stateful-superpowers`. Harnesses that can only resolve upstream (GitHub Copilot CLI, OpenCode's npm install) are called out or dropped rather than silently shipping upstream to fork users.
-- **`brainstorming`**: since v7 this is **upstream's file plus insertion points** (ADR 0003). On sync, take upstream's version and re-apply only these: (1) the "Domain language and decisions" paragraph in *Look Before You Ask* (`grilling` capture mode); (2) "or an ADR rules out" and the *Architecture pass* paragraph in *The Conversation* (details in `references/architecture-pass.md`); (3) spikes go through `superpowers:prototype`; (4) the PRD umbrella sentence in *Size the Work*; (5) the domain-terms and Architecture lines in *The Written Design*; (6) the gate: the quick-task and opt-out paths still need approval of a short design, the gate's only exception is a prototype, and there's one extra red-flag row; (7) the CONTEXT.md/ADR/Architecture paragraph in `builder-check-prompt.md`.
+- **`brainstorming`**: since v7 this is **upstream's file plus insertion points** (ADR 0003). On sync, take upstream's version and re-apply only these: (1) the "Domain language and decisions" paragraph in *Look Before You Ask* (`grilling` capture mode); (2) "or an ADR rules out" and the *Architecture pass* paragraph in *The Conversation* (details in `references/architecture-pass.md`); (3) spikes are built in a subagent outside the repo and discarded; (4) the PRD umbrella sentence in *Size the Work*; (5) the domain-terms and Architecture lines in *The Written Design*; (6) the gate: the quick-task and opt-out paths still need approval of a short design, the gate's only exception is an approved spike, and there's one extra red-flag row; (7) the CONTEXT.md/ADR/Architecture paragraph in `builder-check-prompt.md`.
 
 ## mattpocock/skills
 
@@ -30,7 +30,6 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 | `designing-modules` | `engineering/improve-codebase-architecture` + `engineering/codebase-design` (the design half, split out of `improving-architecture` — see divergences) |
 | `commenting-modules` | `engineering/codebase-design` (deep-module vocabulary) |
 | `syncing-context` | `engineering/domain-modeling` (glossary half) |
-| `prototype` | `engineering/prototype` |
 | `handoff` | `productivity/handoff` |
 | `zoom-out` | `engineering/zoom-out` (since deleted upstream) |
 
@@ -52,7 +51,7 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 
 - **`CONTEXT.md` stays `CONTEXT.md`.** Upstream renamed it to `GLOSSARY.md` / `GLOSSARY-MAP.md` (`d80fa0f`); the fork's state model uses CONTEXT.md everywhere.
 
-- **`prototype` stays out of the repo.** Upstream now captures prototypes as a *primary source* on a throwaway branch; this fork keeps the temp-dir / never-committed / discard-when-answered guardrails, because here the prototype is a brainstorming-subordinate probe and the real thing is built from scratch via writing-plans → TDD.
+- **`prototype` was removed (2026-11-16).** It duplicated brainstorming's visual companion (throwaway HTML in a browser) and upstream's spike (real code). Its one guardrail survives as the spike hook in brainstorming: built in a subagent, outside the repo, then discarded. Don't re-adopt upstream's `prototype`.
 - **`zoom-out` is kept** even though upstream removed it.
 - **PRD umbrellas are kept.** Upstream renamed its PRD flow to `to-spec`; this fork's `brainstorming` still writes a PRD umbrella for multi-feature initiatives.
 - **`grilling` owns domain capture.** Upstream splits `grilling` / `domain-modeling` / `grill-me` / `grill-with-docs`; the fork folds them into one skill with the CONTEXT.md + ADR discipline inline.

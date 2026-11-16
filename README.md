@@ -329,7 +329,6 @@ Superpowers is built by [Jesse Vincent](https://blog.fsck.com) and the rest of t
 **Collaboration** 
 - **brainstorming** - Draws out intent (why first), captures domain terms and decisions as they settle, gets a design approved before anything is built
 - **grilling** - Relentless round-by-round design interview, capturing terms into CONTEXT.md and decisions into docs/adr/ (brainstorming uses its capture mode only)
-- **prototype** - Build a throwaway probe to answer one design question discussion can't settle
 - **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
 - **designing-modules** - Design module structure, interfaces and seams; the shared engine behind brainstorming's architecture pass and improving-architecture's deepening
 - **commenting-modules** - Add Ousterhout-style interface/implementation comments as a reviewed lifecycle step
@@ -363,7 +362,7 @@ Read [the original release announcement](https://blog.fsck.com/2025/10/09/superp
 Stateful Superpowers stands on the shoulders of giants:
 
 - **[Superpowers](https://github.com/obra/superpowers)** by [Jesse Vincent](https://blog.fsck.com) and [Prime Radiant](https://primeradiant.com) — the framework spine this fork extends: the composable skill system, the brainstorm → plan → subagent-driven-development workflow, and the bootstrap that makes skills trigger automatically.
-- **[Skills for Real Engineers](https://github.com/mattpocock/skills)** by [Matt Pocock](https://www.aihero.dev) — the engineering skills whose mechanics we absorbed: the grill-with-docs interview discipline (`grilling`), `improving-architecture`, `prototype`, `zoom-out`, `handoff`, and the `CONTEXT.md` glossary + `docs/adr/` domain substrate.
+- **[Skills for Real Engineers](https://github.com/mattpocock/skills)** by [Matt Pocock](https://www.aihero.dev) — the engineering skills whose mechanics we absorbed: the grill-with-docs interview discipline (`grilling`), `improving-architecture`, `zoom-out`, `handoff`, and the `CONTEXT.md` glossary + `docs/adr/` domain substrate.
 
 This fork's own contribution is the synthesis — folding that stateful domain-model discipline into the Superpowers spine without disturbing its workflow — with more of our own ideas layered on as the project grows.
 

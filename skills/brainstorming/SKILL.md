@@ -200,8 +200,8 @@ fast. A quick throwaway build is often the cheapest way to learn what
 they want or whether something works. Offer one when it would help.
 When they just want to spike, get out of the way. Spikes get no tests
 or minimal ones, aren't bulletproof, and skip the plan, implementation,
-and review process. Run it through `superpowers:prototype`: it stays out
-of the repo and is discarded once it has answered the question. Bring what the spike taught you back into the
+and review process. Build it in a subagent, outside the repo (the OS temp
+dir), and discard it once it has taught you what you needed. Bring what the spike taught you back into the
 conversation.
 
 ## Play It Back
@@ -296,9 +296,9 @@ Building includes writing product code, scaffolding, installing
 dependencies, creating projects, and invoking an implementation skill.
 Reading and exploring are fine.
 
-One exception: a spike they said yes to may be built, through
-superpowers:prototype; it stays throwaway, and keeping what it produced
-is a new request that comes back through this gate. Opting out of the
+One exception: a spike they said yes to may be built; it stays labeled
+throwaway, and keeping what it produced is a new request that comes back
+through this gate. Opting out of the
 questions never opts out of approval.
 
 After the design doc is approved, the next step is the plan: invoke
