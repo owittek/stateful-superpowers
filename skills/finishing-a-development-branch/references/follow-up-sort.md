@@ -16,7 +16,7 @@ Read the H1 of `docs/agents/issue-tracker.md`:
 | Config | Ticket offered? |
 |---|---|
 | `# Issue tracker: Local Markdown` | yes |
-| `# Issue tracker: GitHub` | only if `TRACKER find followup "<key words of an item>"` exits 0. If it says "not implemented", the script can't file GitHub tickets yet: offer now / drop only and say so in the message. |
+| `# Issue tracker: GitHub` | only if `TRACKER find followup "<one key word of an item>"` exits 0. If it fails (`gh` missing or unauthenticated, repo unreachable), offer now / drop only and say why in the message. |
 | any other H1 | no — the script refuses other trackers; say so |
 | no file | yes, through `TRACKER init` (section 4) |
 

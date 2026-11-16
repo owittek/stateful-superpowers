@@ -53,8 +53,9 @@ TICKET=$([ -n "$BRANCH" ] && git config "branch.$BRANCH.ticket" || true)
 
 `TRACKER` below is this skill's `scripts/tracker`, run by its absolute
 path. Empty `TICKET`: skip every ticket line in Step 5. If `TRACKER`
-refuses the backend (it can't reach GitHub yet), report that refusal and
-tell your human partner the ticket is resolved by hand.
+refuses the backend (a tracker other than Local Markdown or GitHub, or
+`gh` unavailable), report that refusal and tell your human partner the
+ticket is resolved by hand.
 
 This determines which menu to show and how cleanup works:
 
