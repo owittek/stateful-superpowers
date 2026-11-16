@@ -6,7 +6,7 @@ argument-hint: "What will the next session be used for?"
 
 Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows) - not the current workspace.
 
-Primary use: compact a long exploration / planning / orchestration session — especially at the **build → review/refactor/adjust boundary** — into a clean resume doc so a fresh session starts lean. Reference CONTEXT.md and docs/adr/ by path (do not duplicate them); the "suggested skills" section should point at the superpowers skill that resumes the work (e.g. improving-architecture, systematic-debugging, receiving-code-review).
+Use it when the work moves (a new harness, a new directory, a colleague, a side task forked mid-phase) or when reasoning is not yet captured in a spec, plan or ticket. Reference CONTEXT.md and docs/adr/ by path (do not duplicate them); the "suggested skills" section should point at the superpowers skill that resumes the work (e.g. improving-architecture, systematic-debugging, receiving-code-review).
 
 Include a "suggested skills" section in the document, which suggests superpowers skills that the agent should invoke to resume the work (in `Use superpowers:<skill>` form), e.g. `Use superpowers:improving-architecture`, `Use superpowers:systematic-debugging`, `Use superpowers:receiving-code-review`.
 

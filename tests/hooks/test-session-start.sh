@@ -351,6 +351,18 @@ assert_command_output \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     "$bash_bin" -c 'cd "$1" && exec "$2" "$3"' _ "$backslash_cwd" "$bash_bin" "$backslash_hook"
 
+# The injected using-superpowers text names the follow-up helper by absolute
+# path: the agent never sees that skill's directory, so a relative path from
+# it leads nowhere.
+assert_command_output \
+    "injected routing names the followup helper by absolute path" \
+    "nested" \
+    "$REPO_ROOT/skills/finishing-a-development-branch/scripts/followup add" \
+    "{{SKILLS_DIR}}" \
+    "$(make_home followup-path)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    "$bash_bin" "$HOOK_UNDER_TEST"
+
 # Compaction reminder: on "compact" only, with open items in the project's
 # follow-up list, the context gains one count line. Claude Code passes the
 # SessionStart source on stdin as JSON.
@@ -375,7 +387,7 @@ for source in startup resume clear compact; do
 done
 printf '{\n  "session_id": "abc",\n  "source": "compact"\n}\n' > "$stdin_dir/compact-spaced.json"
 
-reminder="2 open follow-ups in .superpowers/followups.md"
+reminder="Open follow-ups: 2 in .superpowers/followups.md"
 
 assert_command_output \
     "compact with two open follow-ups appends the count line" \
@@ -401,7 +413,7 @@ assert_command_output \
     "startup with open follow-ups adds no count line" \
     "nested" \
     "" \
-    "open follow-ups" \
+    "Open follow-ups:" \
     "$(make_home followup-startup)" \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     CLAUDE_PROJECT_DIR="$followup_project" \
@@ -411,7 +423,7 @@ assert_command_output \
     "compact with no follow-up list adds no count line" \
     "nested" \
     "" \
-    "open follow-ups" \
+    "Open follow-ups:" \
     "$(make_home followup-none)" \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     CLAUDE_PROJECT_DIR="$clean_project" \
@@ -421,7 +433,7 @@ assert_command_output \
     "compact with only closed follow-ups adds no count line" \
     "nested" \
     "" \
-    "open follow-ups" \
+    "Open follow-ups:" \
     "$(make_home followup-closed)" \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     CLAUDE_PROJECT_DIR="$closed_project" \
