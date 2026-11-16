@@ -20,13 +20,15 @@
 # and closed lines stay, so a number is never reused. Each item is tagged
 # with the branch checked out where it was added; `list` shows the current
 # branch's items unless --all, and `count` counts open items on every branch.
-# A branch whose worktree is gone keeps its items until they are closed.
+# A branch whose worktree is gone keeps its items until they are closed;
+# `list --orphaned` adds the items of branches that no longer exist locally,
+# so a branch merged without finishing still gets its items sorted.
 #
 # -C DIR runs as if started in DIR, the way git -C does (see sdd-workspace).
 #
 # Usage:
 #   followup [-C DIR] add TEXT [--source S]          -> prints N
-#   followup [-C DIR] list [--open] [--all]          -> item lines
+#   followup [-C DIR] list [--open] [--all] [--orphaned] -> item lines
 #   followup [-C DIR] done N --as now|dropped|ticket REF
 #   followup [-C DIR] count                          -> open items, all branches
 set -euo pipefail
@@ -34,7 +36,7 @@ set -euo pipefail
 usage() {
   {
     echo "usage: followup [-C DIR] add TEXT [--source S]"
-    echo "       followup [-C DIR] list [--open] [--all]"
+    echo "       followup [-C DIR] list [--open] [--all] [--orphaned]"
     echo "       followup [-C DIR] done N --as now|dropped|ticket REF"
     echo "       followup [-C DIR] count"
   } >&2
@@ -133,11 +135,12 @@ op_add() {
 }
 
 op_list() {
-  local open=false all=false branch=""
+  local open=false all=false orphaned=false branch="" live=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --open) open=true ;;
       --all) all=true ;;
+      --orphaned) orphaned=true ;;
       *) usage ;;
     esac
     shift
@@ -145,18 +148,33 @@ op_list() {
   resolve_list
   [ "$all" = true ] || branch=$(current_branch)
   [ -f "$LIST" ] || return 0
+  # Local branch names, one per line, for --orphaned. Strip refs/heads/ by
+  # hand for the same reason as current_branch.
+  if [ "$orphaned" = true ]; then
+    live=$(git for-each-ref --format='%(refname)' refs/heads/ | sed 's|^refs/heads/||')
+  fi
   # Match on the exact "] [branch] " tag after the number, so branch feat
   # never shows feat-x's items and text cannot fake a tag.
   # Values go to awk through the environment: awk -v would expand
   # backslash escapes in them.
-  OPEN=$open BRANCH=$branch awk '
-    BEGIN { open = ENVIRON["OPEN"]; branch = ENVIRON["BRANCH"] }
+  # A tag runs to the first "] ": git refuses spaces in branch names.
+  OPEN=$open BRANCH=$branch ORPHANED=$orphaned LIVE=$live awk '
+    BEGIN {
+      open = ENVIRON["OPEN"]; branch = ENVIRON["BRANCH"]
+      orphaned = ENVIRON["ORPHANED"]
+      n = split(ENVIRON["LIVE"], names, "\n")
+      for (i = 1; i <= n; i++) if (names[i] != "") alive[names[i]] = 1
+    }
     !/^- \[[ x]\] [0-9]+\. \[/ { next }
     open == "true" && substr($0, 1, 6) != "- [ ] " { next }
     branch != "" {
       rest = substr($0, 7); sub(/^[0-9]+\. /, "", rest)
       tag = "[" branch "] "
-      if (substr(rest, 1, length(tag)) != tag) next
+      if (substr(rest, 1, length(tag)) != tag) {
+        if (orphaned != "true") next
+        end = index(rest, "] ")
+        if (end < 3 || (substr(rest, 2, end - 2) in alive)) next
+      }
     }
     { print }
   ' "$LIST"

@@ -13,9 +13,10 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 ## Step 0: Sort Follow-ups
 
-Run this skill's `scripts/followup list --open` by its absolute path, from
-the working tree you're executing in. It prints this branch's open
-follow-ups.
+Run this skill's `scripts/followup list --open --orphaned` by its absolute
+path, from the working tree you're executing in. It prints this branch's
+open follow-ups, plus those of branches that no longer exist (merged or
+deleted without a sort), which nothing else would ever surface.
 
 **If it prints nothing, or exits non-zero (a detached HEAD has no branch to
 tag follow-ups with):** say nothing about follow-ups; continue to Step 1.

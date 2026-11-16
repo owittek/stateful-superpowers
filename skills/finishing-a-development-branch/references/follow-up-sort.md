@@ -1,7 +1,8 @@
 # Follow-up sort
 
 Step 0 of finishing-a-development-branch, read only when
-`followup list --open` printed items for this branch. Every item gets one
+`followup list --open --orphaned` printed items: this branch's, and any
+left by branches that no longer exist. Every item gets one
 disposition — **now**, **ticket** or **drop** — chosen by your human
 partner in one reply, before the test run (doing items changes code).
 
@@ -24,8 +25,11 @@ On the discard path "ticket" is never offered (section 6).
 
 ## 2. The one message
 
-List every open item for this branch — all of them, in one message — each
-with your recommended disposition and a one-line why. Recommend **now**
+List every open item it printed — all of them, in one message — each
+with your recommended disposition and a one-line why. Group items from
+deleted branches under their own line ("Left by deleted branches:"); check
+each against the base before recommending, since the work may have fixed it
+already. Recommend **now**
 for anything small enough to fix on this branch, **ticket** for real work
 that outlives this branch, **drop** for items the branch made moot.
 
