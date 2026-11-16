@@ -671,7 +671,7 @@ github_register_parent() {
 github_publish_ticket() {
   local parent=$1 kind=$2 title=$3 body_file=$4
   shift 4
-  local pnum="" info ref n ids="" created num id
+  local pnum="" info ref n ids="" created num id err msg
   if [ "$parent" = - ]; then
     [ "$kind" = followup ] || die "parent - is only for kind followup"
   else
@@ -692,10 +692,16 @@ github_publish_ticket() {
   created=$(gh_create "$kind" "$title" "$body_file")
   num=${created%%$'\t'*}
   id=${created#*$'\t'}
-  ghx api --method POST "repos/{owner}/{repo}/issues/$pnum/sub_issues" -F sub_issue_id="$id" >/dev/null
-  for id in $ids; do
-    ghx api --method POST "repos/{owner}/{repo}/issues/$num/dependencies/blocked_by" -F issue_id="$id" >/dev/null
-  done
+  # The issue exists from here on: a failure names it so the caller can
+  # finish the wiring by hand instead of publishing a duplicate
+  err=$(mktemp)
+  (
+    ghx api --method POST "repos/{owner}/{repo}/issues/$pnum/sub_issues" -F sub_issue_id="$id" >/dev/null
+    for id in $ids; do
+      ghx api --method POST "repos/{owner}/{repo}/issues/$num/dependencies/blocked_by" -F issue_id="$id" >/dev/null
+    done
+  ) 2>"$err" || { msg=$(tail -n 1 "$err"); rm -f "$err"; die "created #$num but could not link it: $msg"; }
+  rm -f "$err"
   printf '#%s\n' "$num"
 }
 
@@ -748,7 +754,7 @@ gh_open_blockers() {
 # Listings (sub-issues, issues by label) lag writes by seconds, so each
 # candidate's state and assignees are re-read from the issue itself.
 github_frontier() {
-  local kind=$1 lit pnum n title info filter
+  local kind=$1 lit pnum n title info filter candidates blocked
   lit=$(json_string "$kind")
   filter=".[] | select(.pull_request == null and .state == \"open\" and (.assignees | length) == 0 and (.labels | map(.name) | index($lit))) | \"\(.number)\t\(.title)\""
   if [ $# -eq 2 ]; then
@@ -758,14 +764,16 @@ github_frontier() {
   else
     set -- "repos/{owner}/{repo}/issues?state=open&per_page=100&labels=$kind"
   fi
-  ghx api --paginate "$1" --jq "$filter" | sort -n | while IFS=$'\t' read -r n title; do
+  candidates=$(ghx api --paginate "$1" --jq "$filter" | sort -n) || exit 1
+  while IFS=$'\t' read -r n title; do
     [ -n "$n" ] || continue
-    info=$(gh_issue "$n")
+    info=$(gh_issue "$n") || exit 1
     [ "$(sed -n 1p <<<"$info")" = open ] || continue
     [ -z "$(sed -n 2p <<<"$info")" ] || continue
-    [ "$(gh_open_blockers "$n")" = 0 ] || continue
+    blocked=$(gh_open_blockers "$n") || exit 1
+    [ "$blocked" = 0 ] || continue
     printf '#%s\t%s\n' "$n" "$title"
-  done
+  done <<<"$candidates"
 }
 
 github_claim() {
@@ -809,10 +817,12 @@ github_resolve() {
 # followups and titled "Follow-ups", or nothing. The listing lags, so each
 # hit is confirmed open on the issue itself.
 gh_find_followups_parent() {
-  local n
-  for n in $(ghx api --paginate "repos/{owner}/{repo}/issues?state=open&labels=followups&per_page=100" \
-    --jq '.[] | select(.pull_request == null and .title == "Follow-ups") | .number' | sort -n); do
-    if [ "$(gh_issue "$n" | sed -n 1p)" = open ]; then
+  local n hits info
+  hits=$(ghx api --paginate "repos/{owner}/{repo}/issues?state=open&labels=followups&per_page=100" \
+    --jq '.[] | select(.pull_request == null and .title == "Follow-ups") | .number' | sort -n) || exit 1
+  for n in $hits; do
+    info=$(gh_issue "$n") || exit 1
+    if [ "$(sed -n 1p <<<"$info")" = open ]; then
       printf '%s\n' "$n"
       return 0
     fi
@@ -825,7 +835,8 @@ gh_find_followups_parent() {
 # creating a second one.
 github_followups_parent() {
   local n body created i
-  n=$(gh_find_followups_parent)
+  # Command substitutions do not inherit set -e in bash 3.2: fail explicitly
+  n=$(gh_find_followups_parent) || exit 1
   if [ -n "$n" ]; then
     printf '%s\n' "$n"
     return 0
