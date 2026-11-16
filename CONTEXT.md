@@ -15,7 +15,7 @@ _Avoid_: entry point, router, top-level skill
 
 **Engine skill**:
 A skill invoked by front-ends rather than routed to, owning one reusable phase
-of their work. `grilling` (the interview) and `designing-modules` (module and
+of their work. `grilling` (the interview and domain capture) and `designing-modules` (module and
 seam design) are the two. An engine returns to its caller; the caller owns the
 terminal state.
 _Avoid_: sub-skill, helper skill, shared skill
@@ -26,6 +26,12 @@ can check, and makes no decisions of its own. `executing-plans`,
 `subagent-driven-development` and `picking-up-ticket` are runners. A runner
 never interviews.
 _Avoid_: orchestrator, pipeline, workflow skill
+
+**Capture mode**:
+How `brainstorming` uses `grilling`: domain-language challenges and inline
+`CONTEXT.md`/ADR capture during brainstorming's own conversation, with no
+interview rounds. See ADR 0003.
+_Avoid_: lite grilling, passive grilling
 
 **Architecture pass**:
 The optional `designing-modules` step inside `brainstorming`, offered

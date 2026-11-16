@@ -1,7 +1,9 @@
 ---
 name: grilling
-description: Relentless interview engine that walks the decision tree round by round (with a recommended answer per question), challenges the plan against the project's domain language and recorded decisions, and captures resolved terms into CONTEXT.md and hard-to-reverse decisions into docs/adr/ inline. Invoked by brainstorming and improving-architecture for their interview phase; can also be used standalone to stress-test a plan.
+description: Relentless interview engine that walks the decision tree round by round (with a recommended answer per question), challenges the plan against the project's domain language and recorded decisions, and captures resolved terms into CONTEXT.md and hard-to-reverse decisions into docs/adr/ inline. Invoked by improving-architecture for its interview phase, and by brainstorming in capture mode (domain-language and decision capture only, no rounds); can also be used standalone to stress-test a plan.
 ---
+
+**Capture mode.** When a caller invokes this skill in capture mode (brainstorming does), the caller owns the interview: skip `<what-to-do>` and run no rounds of your own. Apply the State discipline and the During-the-session rules below throughout the caller's conversation: challenge terms against `CONTEXT.md`, sharpen fuzzy language, cross-check against the code, write resolved terms inline, offer an ADR when the three-part gate passes. Raise any challenge as part of the caller's next message, not as a separate round.
 
 <what-to-do>
 
@@ -15,11 +17,19 @@ Each question is formatted like so:
 ❓ **Q1** - **<question title>**: <question body, may be several paragraphs, including multiple choices>
 
 ➡️ <your recommended answer>
+
+---
+
+❓ **Q2** - **<question title>**: <question body>
+
+➡️ <your recommended answer>
 ```
+
+Word each question so "yes" accepts your recommended answer.
 
 Each round of answers reshapes the tree — settled decisions push the frontier outward and unblock the questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
 
-Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (the codebase, the filesystem, tools), dispatch a subagent to find it — never ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for that subagent to report — ask the rest of the frontier now. The _decisions_ are the user's — put each to them and wait.
+Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (the codebase, the filesystem, tools), dispatch a subagent with a fresh context window to find it — never ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for that subagent to report — ask the rest of the frontier now. The _decisions_ are the user's — put each to them and wait.
 
 The session is done when the frontier is empty: every branch of the decision tree visited, nothing left silently assumed. Do not act on the resolved design until the user confirms you have reached a shared understanding.
 
