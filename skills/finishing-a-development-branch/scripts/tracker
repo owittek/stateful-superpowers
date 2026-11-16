@@ -360,14 +360,14 @@ esac
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git work tree"
 CONFIG="$ROOT/docs/agents/issue-tracker.md"
 TICKETS="$ROOT/docs/superpowers/tickets"
-[ -f "$CONFIG" ] || die "no docs/agents/issue-tracker.md: run setting-up-tracker first"
+[ -f "$CONFIG" ] || die "no tracker configured: run tracker init"
 
 h1=$(grep -m 1 '^# ' "$CONFIG" | sed 's/^# //; s/[[:space:]]*$//' || true)
 backend=${h1#"Issue tracker: "}
 case "$backend" in
   "Local Markdown") adapter=local ;;
   GitHub) die "GitHub backend is not implemented yet; run gh by hand per docs/agents/issue-tracker.md" ;;
-  "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; run setting-up-tracker" ;;
+  "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker" ;;
   *) die "issue tracker \"$backend\" is not supported by this script; follow docs/agents/issue-tracker.md by hand" ;;
 esac
 

@@ -38,7 +38,7 @@ echo "tracker: missing config"
 bare="$TEST_ROOT/bare"
 mkdir -p "$bare"
 g -C "$bare" -c init.defaultBranch=main init -q
-assert_every_op_fails "$bare" "run setting-up-tracker" "without config points at setting-up-tracker"
+assert_every_op_fails "$bare" "no tracker configured: run tracker init" "without config points at tracker init"
 
 echo "tracker: unsupported backends"
 jira=$(make_repo jira "Issue tracker: Jira")

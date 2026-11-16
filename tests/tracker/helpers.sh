@@ -6,7 +6,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TRACKER="$REPO_ROOT/skills/picking-up-ticket/scripts/tracker"
+TRACKER="$REPO_ROOT/skills/finishing-a-development-branch/scripts/tracker"
 
 FAILURES=0
 TEST_ROOT="$(mktemp -d)"
