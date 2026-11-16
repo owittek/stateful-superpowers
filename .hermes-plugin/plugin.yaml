@@ -1,0 +1,6 @@
+name: stateful-superpowers
+version: 0.9.0
+description: Stateful Superpowers skills and workflow bootstrap for Hermes Agent
+author: owittek
+provides_hooks:
+  - pre_llm_call
