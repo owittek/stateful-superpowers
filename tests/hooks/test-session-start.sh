@@ -363,6 +363,15 @@ assert_command_output \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     "$bash_bin" "$HOOK_UNDER_TEST"
 
+assert_command_output \
+    "injected routing names the tracker helper by absolute path" \
+    "nested" \
+    "$REPO_ROOT/skills/finishing-a-development-branch/scripts/tracker frontier ticket" \
+    "{{SKILLS_DIR}}" \
+    "$(make_home tracker-path)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    "$bash_bin" "$HOOK_UNDER_TEST"
+
 # Compaction reminder: on "compact" only, with open items in the project's
 # follow-up list, the context gains one count line. Claude Code passes the
 # SessionStart source on stdin as JSON.
