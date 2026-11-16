@@ -186,6 +186,22 @@ clash=$(make_repo clash)
 tracker "$clash" register-parent spec "Follow ups" docs/z.md 3333333 >/dev/null
 assert_fails "a follow-ups directory holding another parent is refused" "follow-ups/00 is not the Follow-ups parent" tracker "$clash" publish-ticket - followup "Nope" "$body"
 
+echo "tracker: find"
+assert_eq "find matches the title case-insensitively" "$(printf 'follow-ups/01\tRetry flaky claim')" "$(tracker "$repo" find followup FLAKY)"
+assert_eq "find matches the body" "$(printf 'follow-ups/01\tRetry flaky claim')" "$(tracker "$repo" find followup "stale blockers")"
+assert_eq "find matches another ticket's body" "$(printf 'follow-ups/02\tDocs typo in fetch')" "$(tracker "$repo" find followup "it works")"
+assert_eq "find filters by kind" "" "$(tracker "$repo" find ticket flaky)"
+assert_eq "find matches literally, not as a pattern" "" "$(tracker "$repo" find followup "flaky.claim")"
+status=0
+out=$(tracker "$repo" find followup "no such words") || status=$?
+assert_eq "find with no match prints nothing" "" "$out"
+assert_eq "find with no match exits 0" 0 "$status"
+tracker "$repo" resolve "$fu1" "merge 4444444" >/dev/null
+assert_eq "find skips done tickets" "" "$(tracker "$repo" find followup flaky)"
+status=0
+tracker "$repo" find followup "" >/dev/null 2>&1 || status=$?
+assert_eq "find with empty text exits 2" 2 "$status"
+
 echo "tracker: -C DIR"
 cparent=$(tracker_c "$repo" register-parent spec "Dash C" docs/c.md 2222222)
 assert_eq "-C register-parent" "dash-c/00" "$cparent"
@@ -198,6 +214,7 @@ assert_eq "-C claim commits in the target repo" "chore(tracker): claim dash-c/01
 assert_eq "-C comment" ok "$(tracker_c "$repo" comment "$ct" "$note")"
 assert_eq "-C resolve" ok "$(tracker_c "$repo" resolve "$ct" "merge def5678")"
 assert_line "-C resolve lands in the target repo" "state: done" "$(tracker "$repo" fetch "$ct")"
+assert_eq "-C find" "$(printf 'follow-ups/02\tDocs typo in fetch')" "$(tracker_c "$repo" find followup typo)"
 assert_eq "-C init local on a configured repo is a no-op" ok "$(tracker_c "$repo" init local)"
 
 finish

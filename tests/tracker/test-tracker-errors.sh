@@ -4,7 +4,7 @@ set -euo pipefail
 # shellcheck source=tests/tracker/helpers.sh
 . "$(cd "$(dirname "$0")" && pwd)/helpers.sh"
 
-# assert_every_op_fails REPO NEEDLE SUFFIX -> all seven ops exit non-zero with
+# assert_every_op_fails REPO NEEDLE SUFFIX -> every op but init exit non-zero with
 # a one-line reason containing NEEDLE
 assert_every_op_fails() {
   local repo=$1 needle=$2 suffix=$3
@@ -15,6 +15,7 @@ assert_every_op_fails() {
   assert_fails "claim $suffix" "$needle" tracker "$repo" claim x/01
   assert_fails "resolve $suffix" "$needle" tracker "$repo" resolve x/01 abc1234
   assert_fails "comment $suffix" "$needle" tracker "$repo" comment x/01 /dev/null
+  assert_fails "find $suffix" "$needle" tracker "$repo" find followup text
 }
 
 echo "tracker: usage"
@@ -65,6 +66,8 @@ assert_fails "claim of an unknown ref" "no such ref: x/01" tracker "$local" clai
 assert_fails "frontier scoped to an unknown parent" "no such ref: x/00" tracker "$local" frontier ticket x/00
 out=$(tracker "$local" frontier ticket)
 assert_eq "frontier with no tickets directory prints nothing" "" "$out"
+out=$(tracker "$local" find followup text)
+assert_eq "find with no tickets directory prints nothing" "" "$out"
 assert_fails "comment on an unknown ref" "no such ref: x/01" tracker "$local" comment x/01 /dev/null
 assert_fails "resolve of an unknown ref" "no such ref: x/01" tracker "$local" resolve x/01 abc1234
 

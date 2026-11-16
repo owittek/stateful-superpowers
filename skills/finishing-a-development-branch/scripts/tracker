@@ -44,6 +44,7 @@ usage: tracker [-C DIR] <op> [args]
   claim           REF                                       -> ok
   resolve         REF WHAT                                  -> ok
   comment         REF TEXT_FILE                             -> ok
+  find            KIND TEXT                                 -> ref<TAB>title per line
   init            local|github                              -> ok
 EOF
   exit 2
@@ -376,6 +377,24 @@ local_frontier() {
   done
 }
 
+# Open tickets of KIND whose title or body contains TEXT, compared
+# case-insensitively and literally (no pattern characters). Parents count when
+# their kind matches; done tickets never do.
+local_find() {
+  local kind=$1 text=$2 f content
+  for f in "$TICKETS"/*/[0-9][0-9]-*.md; do
+    [ -f "$f" ] || continue
+    [ "$(header_field "$f" Kind)" = "$kind" ] || continue
+    [ "$(header_field "$f" Status)" != "done" ] || continue
+    # No pipe into grep -q: it stops at the first match, and a writer it cuts
+    # off would fail the pipeline under pipefail
+    content="$(title_of "$f")
+$(body_of "$f")"
+    grep -Fqi -e "$text" <<<"$content" || continue
+    printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
+  done
+}
+
 local_claim() {
   local file ref me state assignee
   file=$(resolve_ref "$1")
@@ -434,6 +453,7 @@ case "$op" in
   frontier) [ $# -ge 1 ] && [ $# -le 2 ] || usage ;;
   fetch | claim) [ $# -eq 1 ] || usage ;;
   resolve | comment) [ $# -eq 2 ] || usage ;;
+  find) [ $# -eq 2 ] && [ -n "$2" ] || usage ;;
   init) [ $# -eq 1 ] && { [ "$1" = local ] || [ "$1" = github ]; } || usage ;;
   *) usage ;;
 esac
