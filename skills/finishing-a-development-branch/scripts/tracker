@@ -6,12 +6,14 @@
 #
 # The backend is the H1 of docs/agents/issue-tracker.md:
 #   "# Issue tracker: Local Markdown"  -> files under docs/superpowers/tickets/
-#   "# Issue tracker: GitHub"          -> gh (not implemented yet, #13)
+#   "# Issue tracker: GitHub"          -> GitHub Issues through gh
 # Any other H1 means "other": this script refuses and the skills follow the
 # config's prose by hand. No config: every op but init fails with "no tracker
-# configured: run tracker init". `init local` writes the Local Markdown config
-# (uncommitted) and is a no-op when one exists; it never overwrites another
-# backend's config. `init github` is not implemented yet (#13).
+# configured: run tracker init". `init local|github` writes that backend's
+# config (uncommitted) and leaves one for the same backend untouched; it never
+# overwrites another backend's config. `init github` also creates the kind
+# labels (spec, ticket, followup, followups) and, when the repo has issues
+# disabled, prints a one-line hint on stderr rather than changing settings.
 #
 # Local Markdown layout. One directory per parent,
 # docs/superpowers/tickets/<parent-slug>/, holding 00-<kind>.md (the parent)
@@ -43,6 +45,26 @@
 # "Resolved by <what>" under Comments; register-parent, publish-ticket,
 # comment and init leave their changes in the work tree for the caller to
 # commit; BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
+#
+# GitHub layout. The repo is gh's default: GH_REPO when set, else the
+# checkout's remote. A ref is "#N" (input also takes "N"). A kind is a label
+# of the same name; missing labels are created on demand. Parent kinds (spec,
+# map, followups) cannot be claimed; tickets cannot be parents of tickets
+# (child kinds: ticket, decision, followup). publish-ticket validates parent,
+# body and blockers before creating anything, then creates the issue, makes it
+# a sub-issue of the parent (REST issues/P/sub_issues) and adds one native
+# blocked-by edge per blocker (REST issues/N/dependencies/blocked_by), so
+# blockers must exist first. fetch's state is done (closed), open (parent
+# kind), claimed (assigned) or ready. frontier lists open, unassigned issues of
+# KIND, PARENT's sub-issues when given, with no open blocker; it reads each
+# candidate's blocked-by list rather than issue_dependencies_summary, which
+# lags edits and closes by seconds. Issue listings lag writes too, so find and
+# an unscoped frontier may miss the last few seconds' changes. claim assigns
+# @me (a no-op when already mine, refused naming the assignees otherwise);
+# resolve comments "Resolved by <what>" and closes. The standing Follow-ups
+# parent is the oldest open issue labelled followups titled "Follow-ups",
+# created on first use. gh missing or unauthenticated fails every op with a
+# one-line reason; so does any gh error.
 #
 # -C DIR runs as if started in DIR, the way git -C does, so a caller working
 # on another checkout or worktree needs no `cd DIR ;` prefix. Relative file
@@ -233,20 +255,35 @@ backend_of() {
 }
 
 # init_config BACKEND -> write the config for BACKEND, or leave an existing
-# one for the same backend untouched; never overwrite another backend's
+# one for the same backend untouched; never overwrite another backend's.
+# `init github` also creates the kind labels and, when the repo has issues
+# disabled, prints a one-line hint on stderr instead of changing settings.
 init_config() {
-  local existing
-  [ "$1" = local ] || die "init github is not implemented yet (#13)"
+  local name existing write=1
+  case "$1" in
+    local) name="Local Markdown" ;;
+    github) name=GitHub ;;
+  esac
   if [ -f "$CONFIG" ]; then
     existing=$(backend_of "$CONFIG")
     case "$existing" in
-      "Local Markdown") echo ok; return 0 ;;
+      "$name") write=0 ;;
       "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; not overwriting" ;;
       *) die "docs/agents/issue-tracker.md already names \"$existing\"; not overwriting" ;;
     esac
   fi
-  mkdir -p "$(dirname "$CONFIG")"
-  cat >"$CONFIG" <<'CONFIG_EOF' || die "cannot write $CONFIG"
+  [ "$1" = local ] || gh_preflight
+  if [ "$write" = 1 ]; then
+    mkdir -p "$(dirname "$CONFIG")"
+    "${1}_config" >"$CONFIG" || die "cannot write $CONFIG"
+  fi
+  [ "$1" = local ] || github_init_repo
+  echo ok
+}
+
+# local_config -> the Local Markdown config template
+local_config() {
+  cat <<'CONFIG_EOF'
 # Issue tracker: Local Markdown
 
 Issues for this repo live as markdown files under `docs/superpowers/tickets/`,
@@ -270,7 +307,68 @@ the files by hand only when the script is unavailable.
 - **comment** REF TEXT_FILE: append under `## Comments`.
 - **find** KIND TEXT: open tickets of KIND whose title or body contains TEXT.
 CONFIG_EOF
-  echo ok
+}
+
+# github_config -> the GitHub config template: the Local one's shape plus the
+# GitHub sections of Pocock's template
+github_config() {
+  cat <<'CONFIG_EOF'
+# Issue tracker: GitHub
+
+Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all
+operations. A kind (`spec`, `ticket`, `followup`, `followups`) is a label of
+the same name; tickets are sub-issues of their parent, with GitHub's native
+blocked-by dependencies between them.
+
+## Ticket operations
+
+Skills run these through
+`skills/finishing-a-development-branch/scripts/tracker [-C DIR] <op>`; run the
+`gh` commands below by hand only when the script is unavailable. Refs are
+`#N`.
+
+- **register-parent** KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]: new issue labelled KIND, body `Spec: <path> @ <sha>` and the summary.
+- **publish-ticket** PARENT KIND TITLE BODY_FILE [BLOCKER...]: new issue labelled KIND, sub-issue of PARENT, blocked by each BLOCKER; PARENT `-` with kind `followup` files it under the standing Follow-ups parent (the open issue labelled `followups` titled "Follow-ups", created on first use).
+- **frontier** KIND [PARENT]: open, unassigned issues labelled KIND with no open blocker, optionally only PARENT's sub-issues.
+- **fetch** REF: kind, title, state, assignee, parent, blockers and body.
+- **claim** REF: assign `@me`; a no-op when already mine, refused when assigned to someone else.
+- **resolve** REF WHAT: comment "Resolved by WHAT" and close.
+- **comment** REF TEXT_FILE: issue comment.
+- **find** KIND TEXT: open issues labelled KIND whose title or body contains TEXT.
+
+## Conventions
+
+- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
+- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
+- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
+- **Comment on an issue**: `gh issue comment <number> --body "..."`
+- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
+- **Close**: `gh issue close <number> --comment "..."`
+- **Sub-issue**: `gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>`.
+- **Blocked by**: `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where a database id is `gh api repos/<owner>/<repo>/issues/<n> --jq .id` (not the `#number` or `node_id`).
+
+Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone, and `GH_REPO=<owner>/<repo>` overrides it.
+
+## Pull requests as a triage surface
+
+**PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
+
+When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
+
+- **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
+- **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` (drop `OWNER`/`MEMBER`/`COLLABORATOR`).
+- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
+
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`.
+
+## When a skill says "publish to the issue tracker"
+
+Create a GitHub issue.
+
+## When a skill says "fetch the relevant ticket"
+
+Run `gh issue view <number> --comments`.
+CONFIG_EOF
 }
 
 # --- Local Markdown adapter -------------------------------------------------
@@ -754,6 +852,20 @@ github_find() {
   ghx api --paginate "repos/{owner}/{repo}/issues?state=open&per_page=100&labels=$kind" --jq \
     ".[] | select(.pull_request == null and (.labels | map(.name) | index($klit)) and ((.title + \"\n\" + (.body // \"\")) | ascii_downcase | contains($tlit | ascii_downcase))) | \"#\(.number)\t\(.title)\"" \
     | sort -t '#' -k 2 -n
+}
+
+
+# github_init_repo -> create the kind labels; hint on stderr when the repo
+# has issues disabled (settings are the human's call, never changed here)
+github_init_repo() {
+  local info kind
+  info=$(ghx api "repos/{owner}/{repo}" --jq '"\(.has_issues) \(.full_name)"')
+  if [ "${info%% *}" = false ]; then
+    echo "issues are disabled on ${info#* }; enable them with: gh repo edit ${info#* } --enable-issues" >&2
+  fi
+  for kind in spec ticket followup followups; do
+    gh_ensure_label "$kind"
+  done
 }
 
 # --- dispatch ---------------------------------------------------------------

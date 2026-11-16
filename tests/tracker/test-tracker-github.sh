@@ -216,4 +216,20 @@ assert_eq "find with no match exits 0" 0 "$status"
 tracker "$repo" resolve "$fu1" "merge 4444444" >/dev/null
 eventually_absent "find skips closed issues" "$fu1_line" tracker "$repo" find followup "flaky claim $RUN_TAG"
 
+echo "tracker github: init github"
+fresh="$TEST_ROOT/fresh-gh"
+mkdir -p "$fresh"
+g -C "$fresh" -c init.defaultBranch=main init -q
+assert_eq "init github prints ok" ok "$(tracker "$fresh" init github)"
+assert_file_has_line "init github writes the GitHub H1" "$fresh/docs/agents/issue-tracker.md" "# Issue tracker: GitHub"
+assert_file_has_line "init github documents the ticket operations" "$fresh/docs/agents/issue-tracker.md" "## Ticket operations"
+assert_eq "init github leaves the config uncommitted" "?? docs/" "$(g -C "$fresh" status --porcelain)"
+for kind in spec ticket followup followups; do
+  assert_eq "the $kind label exists" "$kind" "$(ghapi "repos/{owner}/{repo}/labels/$kind" --jq .name)"
+done
+cp "$fresh/docs/agents/issue-tracker.md" "$TEST_ROOT/fresh-before"
+assert_eq "re-running init github prints ok" ok "$(tracker "$fresh" init github)"
+if cmp -s "$fresh/docs/agents/issue-tracker.md" "$TEST_ROOT/fresh-before"; then pass "re-running init github changes nothing"; else fail "re-running init github changes nothing"; fi
+assert_eq "the written config is usable" "" "$(tracker "$fresh" find followup "no such words $RUN_TAG")"
+
 finish
