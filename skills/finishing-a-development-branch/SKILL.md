@@ -13,7 +13,24 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 ## Step 0: Sort Follow-ups
 
-Run this skill's `scripts/followup list --open --orphaned` by its absolute
+**Pattern sweep first.** Skip it on a detached HEAD, when your human partner
+has already asked to discard the work, and when every file in the branch's
+diff is docs, tests or config. Otherwise (`FOLLOWUP` is this skill's
+`scripts/followup`, run by its absolute path, from the working tree you're
+executing in):
+
+- BASE: `git merge-base <base> HEAD`, with `<base>` the base branch if the
+  plan, ticket or conversation already names it, else the default branch.
+  Step 3 still confirms the base before any merge.
+- PRIOR: the lines of `FOLLOWUP list` (this branch, open and closed)
+  that contain `(sweep)`, or `(none)`.
+- Dispatch a fresh subagent with `references/pattern-sweep-prompt.md` in
+  branch mode (no subagent tool: run it yourself, read-only).
+- For each finding:
+  `FOLLOWUP add "<pattern> → <canonical choice>" --source sweep`. Keep the full findings for the sort;
+  `NO FINDINGS` adds nothing.
+
+Then run this skill's `scripts/followup list --open --orphaned` by its absolute
 path, from the working tree you're executing in. It prints this branch's
 open follow-ups, plus those of branches that no longer exist (merged or
 deleted without a sort), which nothing else would ever surface.
