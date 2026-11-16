@@ -111,8 +111,10 @@ _Avoid_: triage, cleanup pass
 The review pass at the start of finishing that lists the recurring patterns a
 branch's diff introduces or touches, checks each against existing helpers and
 sibling instances, and adds the inconsistent ones to the follow-up list with a
-canonical choice. Doing one now means shared primitive + enforcement +
-migration, not a one-site fix.
+canonical choice (the one way to do it, backed by precedent or best practice).
+Doing one now means a shared primitive (the component or helper every site
+uses) + enforcement (a lint rule or test that fails on a new violation) +
+migration of every site, not a one-site fix.
 _Avoid_: style review, consistency lint, audit
 
 **Tracker port**:

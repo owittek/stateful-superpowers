@@ -44,8 +44,8 @@ hits a lint failure instead of re-deciding.
 
 ## Constraints
 
-- Finishing is upstream-tracked: the Step 0 change is one recorded insertion
-  point in `docs/upstream-sync.md` (ADR 0003 discipline).
+- Finishing is upstream-tracked: the sweep is a new recorded insertion point
+  (item 9) in `docs/upstream-sync.md`'s finishing entry, beside #16's eight.
 - Helpers run by absolute path (tests/sdd-helper-paths).
 - Follow-up list line format unchanged: one line per item.
 - Follow-up tickets carry their own content (ADR 0005); no paths in bodies.
@@ -62,6 +62,11 @@ hits a lint failure instead of re-deciding.
 | B | Inside the final whole-branch review (SDD + executing-plans) | Rides an existing review; misses hand-built branches, two insertion points | |
 | C | Extra section in code-reviewer.md | No extra agent; the spike's ~130k tokens would crowd out the correctness review and make the helper search shallow | |
 
+Calls made after the builder check (not discussed with the human): BASE
+fallback, pattern mode for pickup, the ~10-site ticket threshold, PRIOR
+including open items, skipping detached HEAD / discard, no separate record for
+choices without a code anchor.
+
 Disposition flow: through the one-reply follow-up sort (chosen by the human)
 vs automatic in-branch fixing (rejected: unapproved scope growth).
 
@@ -69,17 +74,17 @@ vs automatic in-branch fixing (rejected: unapproved scope growth).
 
 - New term: **Pattern sweep** (CONTEXT.md).
 - Uses: Follow-up, Follow-up list, Follow-up sort, Follow-ups parent, Ticket.
-- ADR 0003 (upstream insertion points), ADR 0005 (follow-up tickets carry
+- docs/upstream-sync.md (finishing insertion points), ADR 0005 (follow-up tickets carry
   content). No new ADR.
 
 ## Architecture
 
 | Module | Interface | Seam | Depth rationale | Test surface |
 |---|---|---|---|---|
-| **Pattern sweep prompt** — `skills/finishing-a-development-branch/references/pattern-sweep-prompt.md` | In: `BASE_SHA`, `HEAD_SHA`, `PRIOR` (this branch's closed `--source sweep` follow-up lines). Out: ≤5 findings, ranked, fixed shape (below), or exactly `NO FINDINGS`. Read-only: never edits files. | the prompt template, dispatched as a fresh subagent | Deep: hides category selection, helper-exists search, sibling search (grep + reading), classification, ranking. | Paid eval: synthetic fixture repo (below) |
-| **Step 0 sweep insertion** — finishing `SKILL.md` | Before `followup list`: if `git diff --name-only BASE..HEAD` has any file that isn't docs/tests/config-only, dispatch the sweep; for each finding `followup add "<pattern> → <canonical choice>" --source sweep`. Full findings stay in session for the sort. | finishing Step 0 | Glue; shallow on purpose | Static test: SKILL.md Step 0 references the prompt and orders sweep before list |
+| **Pattern sweep prompt** — `skills/finishing-a-development-branch/references/pattern-sweep-prompt.md` | Two modes. **Branch mode** — in: `BASE_SHA`, `HEAD_SHA`, `PRIOR` (this branch's sweep follow-up lines, open and closed). **Pattern mode** (ticket pickup) — in: `PATTERN` + `CANONICAL` from the ticket; sweeps the whole repo for that pattern only. Out: ≤5 findings (branch mode) or all sites of the one pattern (pattern mode), fixed shape (below), or exactly `NO FINDINGS`. Read-only: never edits files. | the prompt template, dispatched as a fresh subagent | Deep: hides category selection, helper-exists search, sibling search (grep + reading), classification, ranking. | Paid eval: synthetic fixture repo (below) |
+| **Step 0 sweep insertion** — finishing `SKILL.md` | Before `followup list`. Skipped on a detached HEAD, on the discard path, and when every changed file is docs/tests/config. BASE = merge-base with the base branch if already known (plan, ticket, conversation), else with the default branch; Step 3 still confirms the base for merging. PRIOR = `followup list` lines ending `(sweep)` or `(sweep) → …` (the glue filters; no new followup flag). For each finding `followup add "<pattern> → <canonical choice>" --source sweep`. Full findings stay in session for the sort. | finishing Step 0 | Glue; shallow on purpose | Static test: SKILL.md Step 0 references the prompt and orders sweep before list |
 | **Sort rules for sweep items** — `references/follow-up-sort.md` | now / ticket / drop semantics for `(sweep)` items (below) | the existing sort | Reuses the one-reply decision point | Static doc check |
-| **Helper check at design** — designing-modules step 2 | One sentence: when the new structure repeats an existing pattern (rendering, error mapping, data access), search for an existing helper/primitive and reuse or extract it. | designing-modules step 2 | n/a | none |
+| **Helper check at design** — designing-modules step 2 | One sentence after "Scoped, not a sweep": a targeted search for an existing helper for a pattern the new structure repeats (rendering, error mapping, data access) is in scope — it's one lookup per pattern, not a survey; reuse or extract what it finds. | designing-modules step 2 | n/a | none |
 
 Finding shape (the sweep's whole output contract):
 
@@ -111,7 +116,10 @@ new ports.
 ## Sort semantics for sweep items
 
 - Listed in the sort with the finding's Recommend and Canonical lines.
-- **now:** introduce or reuse the primitive, add the enforcement where the repo
+- Recommend **ticket** rather than now when the outside-diff sites exceed ~10
+  or span more than one area of the codebase; the human can still say now.
+- **now:** the finishing agent re-finds sites (from the in-session findings,
+  or by grepping for the pattern after a compaction), introduces or reuses the primitive, add the enforcement where the repo
   has a mechanism (lint config, arch test, component test — follow what the
   repo already uses; none → say so, no new tooling), migrate every site found
   (diff and outside), TDD as usual, then `followup done N --as now`.
@@ -119,11 +127,15 @@ new ports.
   plus a **Canonical choice** section (choice + evidence) and **Enforcement**
   section; no paths. Acceptance criteria: primitive exists, enforcement fails
   on a new violation, no sites left (re-run the sweep scoped to this pattern at
-  pickup).
+  pickup in pattern mode). writing-plans' ticket intake runs pattern mode when the
+  ticket has a Canonical choice section, and plans from its site list.
 - **drop:** `followup done N --as dropped`; the next sweep on this branch gets
   it in `PRIOR` and doesn't re-raise it.
-- Where the canonical choice can't be expressed in code: doc comment on the
-  primitive + the lint message; no code at all → a short ADR. Never a rulebook.
+- Where the canonical choice is recorded: the doc comment on the primitive and
+  the enforcement's message. Once migrated, the code itself is the precedent
+  the next sweep finds. A choice with no code anchor isn't recorded separately
+  (no rulebook, and ADRs stay for hard-to-reverse decisions); the next sweep
+  re-derives it from precedent.
 
 ## Left to the builder
 
