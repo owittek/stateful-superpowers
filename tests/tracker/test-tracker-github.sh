@@ -61,6 +61,23 @@ eventually() {
   printf '%s\n' "$out" | sed 's/^/      /'
 }
 
+# eventually_absent DESCRIPTION LINE CMD... -> CMD's output stops containing
+# LINE within about 30 seconds
+eventually_absent() {
+  local description=$1 line=$2 out i
+  shift 2
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    out=$("$@" 2>&1) || true
+    if ! printf '%s\n' "$out" | grep -Fqx -- "$line"; then
+      pass "$description"
+      return 0
+    fi
+    [ "$i" = 10 ] || sleep 3
+  done
+  fail "$description"
+  echo "    did not expect line: $line"
+}
+
 repo=$(make_repo github "Issue tracker: GitHub")
 echo "tracker github: running against $GH_REPO, tag $RUN_TAG"
 
@@ -165,5 +182,38 @@ assert_line "fetch shows done" "state: done" "$(tracker "$repo" fetch "$t1")"
 assert_eq "frontier lists both others after the resolve" "$(printf '%s\t%s\n%s\t%s' "$t2" "Two $RUN_TAG" "$t3" "Three $RUN_TAG")" "$(tracker "$repo" frontier ticket "$parent")"
 assert_fails "claim on a done ticket is refused" "$t1 is done" tracker "$repo" claim "$t1"
 assert_fails "resolve of an unknown ref" "no such ref: #999999" tracker "$repo" resolve "#999999" x
+
+echo "tracker github: standing Follow-ups parent"
+fbody="$TEST_ROOT/followup-body.md"
+printf '## What\n\nThe frontier ignores Stale Blockers %s.\n\n## Acceptance criteria\n\n- [ ] Fixed\n' "$RUN_TAG" >"$fbody"
+fu1=$(created "$(tracker "$repo" publish-ticket - followup "Retry flaky claim $RUN_TAG" "$fbody")")
+fpn=$(ghapi "repos/{owner}/{repo}/issues/${fu1#\#}/parent" --jq .number)
+# A Follow-ups parent newer than this run's first issue was created by it
+if [ "$fpn" -gt "$pn" ]; then created "#$fpn" >/dev/null; fi
+assert_eq "the Follow-ups parent is titled Follow-ups" "Follow-ups" "$(ghapi "repos/{owner}/{repo}/issues/$fpn" --jq .title)"
+assert_eq "the Follow-ups parent carries the followups label" followups "$(ghapi "repos/{owner}/{repo}/issues/$fpn" --jq '.labels[].name')"
+assert_eq "the Follow-ups parent is open" open "$(ghapi "repos/{owner}/{repo}/issues/$fpn" --jq .state)"
+assert_line "the follow-up carries the followup label" followup "$(ghapi "repos/{owner}/{repo}/issues/${fu1#\#}" --jq '.labels[].name')"
+fu2=$(created "$(tracker "$repo" publish-ticket - followup "Docs typo in fetch $RUN_TAG" "$body" "$fu1")")
+assert_eq "the second follow-up reuses the parent" "$fpn" "$(ghapi "repos/{owner}/{repo}/issues/${fu2#\#}/parent" --jq .number)"
+assert_eq "the second follow-up is blocked by the first" "${fu1#\#}" "$(ghapi "repos/{owner}/{repo}/issues/${fu2#\#}/dependencies/blocked_by" --jq '.[].number')"
+out=$(tracker "$repo" fetch "#$fpn")
+assert_line "fetch on the Follow-ups parent prints its kind" "kind: followups" "$out"
+assert_line "fetch on the Follow-ups parent prints open" "state: open" "$out"
+assert_fails "parent - with another kind is refused" "parent - is only for kind followup" tracker "$repo" publish-ticket - ticket "Nope $RUN_TAG" "$body"
+
+echo "tracker github: find"
+fu1_line=$(printf '%s\t%s' "$fu1" "Retry flaky claim $RUN_TAG")
+eventually "find matches the title case-insensitively" "$fu1_line" tracker "$repo" find followup "FLAKY CLAIM $RUN_TAG"
+eventually "find matches the body" "$fu1_line" tracker "$repo" find followup "stale blockers $RUN_TAG"
+assert_eq "find matches another ticket's body only by its own text" "$(printf '%s\t%s' "$fu2" "Docs typo in fetch $RUN_TAG")" "$(tracker "$repo" find followup "typo in fetch $RUN_TAG")"
+assert_eq "find filters by kind" "" "$(tracker "$repo" find ticket "flaky claim $RUN_TAG")"
+assert_eq "find matches literally, not as a pattern" "" "$(tracker "$repo" find followup "flaky.claim $RUN_TAG")"
+status=0
+out=$(tracker "$repo" find followup "no such words $RUN_TAG") || status=$?
+assert_eq "find with no match prints nothing" "" "$out"
+assert_eq "find with no match exits 0" 0 "$status"
+tracker "$repo" resolve "$fu1" "merge 4444444" >/dev/null
+eventually_absent "find skips closed issues" "$fu1_line" tracker "$repo" find followup "flaky claim $RUN_TAG"
 
 finish

@@ -706,6 +706,56 @@ github_resolve() {
   echo ok
 }
 
+
+# gh_find_followups_parent -> number of the oldest open issue labelled
+# followups and titled "Follow-ups", or nothing. The listing lags, so each
+# hit is confirmed open on the issue itself.
+gh_find_followups_parent() {
+  local n
+  for n in $(ghx api --paginate "repos/{owner}/{repo}/issues?state=open&labels=followups&per_page=100" \
+    --jq '.[] | select(.pull_request == null and .title == "Follow-ups") | .number' | sort -n); do
+    if [ "$(gh_issue "$n" | sed -n 1p)" = open ]; then
+      printf '%s\n' "$n"
+      return 0
+    fi
+  done
+}
+
+# github_followups_parent -> number of the standing Follow-ups parent,
+# registering it on first use. After creating it, wait (up to ~30s) until
+# the label listing shows it, so the next publish finds it instead of
+# creating a second one.
+github_followups_parent() {
+  local n body created i
+  n=$(gh_find_followups_parent)
+  if [ -n "$n" ]; then
+    printf '%s\n' "$n"
+    return 0
+  fi
+  body=$(mktemp)
+  printf 'Standing parent for deferred follow-up tickets; never closed, points at no spec.\n' >"$body"
+  created=$(gh_create followups "Follow-ups" "$body") || { rm -f "$body"; exit 1; }
+  rm -f "$body"
+  n=${created%%$'\t'*}
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    [ "$(gh_find_followups_parent)" != "$n" ] || break
+    [ "$i" = 15 ] || sleep 2
+  done
+  printf '%s\n' "$n"
+}
+
+# Open issues of KIND whose title or body contains TEXT, compared
+# case-insensitively (ASCII) and literally. Built on the label listing, so a
+# write from the last few seconds may be missed.
+github_find() {
+  local kind=$1 klit tlit
+  klit=$(json_string "$kind")
+  tlit=$(json_string "$2")
+  ghx api --paginate "repos/{owner}/{repo}/issues?state=open&per_page=100&labels=$kind" --jq \
+    ".[] | select(.pull_request == null and (.labels | map(.name) | index($klit)) and ((.title + \"\n\" + (.body // \"\")) | ascii_downcase | contains($tlit | ascii_downcase))) | \"#\(.number)\t\(.title)\"" \
+    | sort -t '#' -k 2 -n
+}
+
 # --- dispatch ---------------------------------------------------------------
 
 if [ "${1:-}" = "-C" ]; then
