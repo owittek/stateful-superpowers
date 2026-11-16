@@ -442,21 +442,29 @@ for source in startup resume clear compact; do
     fi
 done
 
-# A stdin the harness never closes must not hang the hook: the read times
-# out. The writer holds the pipe open for 3s; the hook must finish first.
-open_out="$TEST_ROOT/open-stdin.out"
-{ printf '{"source":"compact"'; sleep 3; } | env -i PATH="${PATH:-}" HOME="$TEST_ROOT" \
-    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CLAUDE_PROJECT_DIR="$followup_project" OUT="$open_out" \
-    "$bash_bin" -c 's=$SECONDS; "$@" > "$OUT"; echo "$((SECONDS - s))" > "$OUT.elapsed"' \
-    _ "$bash_bin" "$HOOK_UNDER_TEST"
-open_elapsed=""
-IFS= read -r open_elapsed < "$open_out.elapsed" || true
-if [[ "$open_elapsed" =~ ^[0-9]+$ ]] && ((open_elapsed < 3)) &&
-    grep -q '"hookSpecificOutput"' "$open_out"; then
-    pass "stdin left open: hook finishes (${open_elapsed}s) and emits its context"
-else
-    fail "stdin left open: hook finishes before the writer closes (elapsed: ${open_elapsed:-?}s)"
+# A stdin the harness never closes must not hang the hook or lose the
+# source: the writer sends the whole JSON, then holds the pipe open for 3s.
+# The hook must finish first and still emit the count line, under bash and
+# under zsh (run-hook.cmd's fallback when bash is missing).
+open_runners=("$bash_bin")
+if open_zsh="$(command -v zsh)"; then
+    open_runners+=("$open_zsh")
 fi
+for open_runner in "${open_runners[@]}"; do
+    open_out="$TEST_ROOT/open-stdin-${open_runner##*/}.out"
+    { printf '{"session_id":"abc","source":"compact"}\n'; sleep 3; } | env -i PATH="${PATH:-}" HOME="$TEST_ROOT" \
+        CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CLAUDE_PROJECT_DIR="$followup_project" OUT="$open_out" \
+        "$bash_bin" -c 's=$SECONDS; "$@" > "$OUT"; echo "$((SECONDS - s))" > "$OUT.elapsed"' \
+        _ "$open_runner" "$HOOK_UNDER_TEST"
+    open_elapsed=""
+    IFS= read -r open_elapsed < "$open_out.elapsed" || true
+    if [[ "$open_elapsed" =~ ^[0-9]+$ ]] && ((open_elapsed < 3)) &&
+        grep -q "$reminder" "$open_out"; then
+        pass "stdin left open under ${open_runner##*/}: hook finishes (${open_elapsed}s) with the count line"
+    else
+        fail "stdin left open under ${open_runner##*/}: hook finishes with the count line (elapsed: ${open_elapsed:-?}s)"
+    fi
+done
 
 # EPIPE on Windows + Git Bash (#1612): the harness can close the hook's stdout
 # before the JSON is written. The hook must still exit 0 with nothing on

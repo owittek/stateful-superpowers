@@ -53,8 +53,12 @@ session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the 
 # The list file is counted first, and only when it has open items is stdin
 # read for the SessionStart JSON's "source" (Claude Code: startup, resume,
 # clear or compact). A repo without a list never touches stdin. stdin is
-# skipped when it's a terminal, and read -t bounds a pipe the harness never
-# closes. Builtins only, like the rest of this script.
+# skipped when it's a terminal. The read stops at the first "}" rather than
+# EOF, so a harness that keeps the pipe open still delivers the source
+# ("source" is a top-level string field, ahead of any nested object), and
+# -t gives up when nothing arrives (bash 3.2 drops a timed-out read's data;
+# zsh's -t only waits for the first byte). Builtins only, like the rest of
+# this script.
 followups_file="${CLAUDE_PROJECT_DIR:-}/.superpowers/followups.md"
 if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -r "$followups_file" ]; then
   open_followups=0
@@ -63,7 +67,7 @@ if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -r "$followups_file" ]; then
   done < "$followups_file"
   if [ "$open_followups" -gt 0 ] && [ ! -t 0 ]; then
     hook_input=""
-    IFS= read -r -t 1 -d '' hook_input || true
+    IFS= read -r -t 1 -d '}' hook_input || true
     hook_input="${hook_input//[[:space:]]/}"
     if [[ $hook_input == *'"source":"compact"'* ]]; then
       session_context="${session_context}\n\n${open_followups} open follow-ups in .superpowers/followups.md (\`followup list --open --all\`)."
