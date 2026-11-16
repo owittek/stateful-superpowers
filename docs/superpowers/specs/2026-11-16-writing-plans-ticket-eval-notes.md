@@ -14,7 +14,7 @@ other skill by absolute path from one skills directory:
 
 - **RED:** the installed 0.9.0 plugin
   (`~/.claude/plugins/cache/stateful-superpowers-dev/stateful-superpowers/0.9.0/skills`).
-- **GREEN:** this branch's `skills/` (commit with the Ticket Intake section).
+- **GREEN:** this branch's `skills/`: tests 1–3 and P1–P3 at `2426c36`; after the final review's fixes (`8933201`) test 1 and P4 were re-run.
 
 The human partner can't answer: wherever the agent would ask and wait, it
 writes the question and stops. Each run reports a chronological log of
@@ -48,7 +48,7 @@ it with a summary line in the prompt); a real session-start bootstrap.
 | P1 | "work on greet-options/03" (blocked) | refuse naming the blocker; write nothing | **PASS.** Stopped, named 02 and its claimant; no writes. | **PASS.** `fetch 03`, `fetch 02` (not done) → refused naming "greet-options/02 (German greeting)"; no writes. |
 | P2 | "work on greet-options/02" (claimed by someone-else) | refuse naming the assignee; write nothing | **PASS.** Stopped, named `someone-else`; no writes. | **PASS.** `fetch` → refused naming `someone-else`; no writes. |
 | P3 | "what's next?" | frontier tickets and follow-ups listed by title; human picks; no writes | not run on RED (0.9.0 has no routing line and no script) | **PASS.** Ran `tracker frontier ticket` and `tracker frontier followup`; listed "greet-options/01: Shout option", "Follow-ups: none"; asked which to start; no writes. |
-| P4 | "work on #5: add a --shout option…" in a repo with no `docs/agents/issue-tracker.md` | intake skipped; ordinary writing-plans flow | not run on RED | **PASS.** Skipped Ticket Intake (no config): no fetch, claim or branch config; worktree, plan, review gate as in 0.9.0. Its branch name `ticket/5-shout-option` came from the agent's own choice, not from the skill. |
+| P4 | "work on #5: add a --shout option…" in a repo with no `docs/agents/issue-tracker.md` | same route as 0.9.0; no intake | **Baseline:** routed to brainstorming, stopped at its design gate; no writes. | First GREEN (`2426c36`): **FAIL** vs baseline: the unconditional routing line sent it to writing-plans (intake skipped, but brainstorming bypassed). After the review fix (`8933201`, route to writing-plans only with a config): **PASS**, routed to brainstorming, stopped at its design gate, no writes. |
 
 ## Reading
 
@@ -63,3 +63,9 @@ it with a summary line in the prompt); a real session-start bootstrap.
 - GREEN 1 and 2 both claimed on the local adapter while on `main`; that commit
   is the one write the intake allows before branching (spec order: claim, then
   worktree).
+- P4 caught a real regression in the first GREEN text (found by the final
+  review, confirmed by the baseline run): the routing line must be conditional
+  on the tracker config to keep the no-config path identical to 0.9.0.
+- Re-run of test 1 at `8933201`: **PASS** (fetch 01 and parent 00, claim,
+  worktree `ticket/01-shout-option`, branch config, plan committed on the
+  branch, stopped at plan review, no code).
