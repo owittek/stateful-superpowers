@@ -1,7 +1,7 @@
 {
   "name": "stateful-superpowers",
   "displayName": "Stateful Superpowers",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Superpowers that remember: brainstorm → plan → TDD → review, keeping your project's language and key decisions across sessions",
   "logo": "assets/antigravity-logo.png",
   "suggestedPrompts": [
