@@ -180,3 +180,48 @@ moves its script. Record ADRs 0004 and 0005; add insertion points to
 and writing-plans gain behaviour). The design-consistency initiative
 (`docs/superpowers/prds/2026-11-16-design-consistency.md`) builds on the
 follow-up list and sort once this lands.
+
+## Eval notes / trial verdict
+
+Recorded at #17. The trial named in `2026-10-04-tracker-bridge-design.md`
+("Rollout and the trial", step 2) ran as the build of this design.
+
+**How it ran.** Tickets #11–#22 were worked one per fresh agent session:
+claim, worktree, writing-plans scoped to the ticket, executing-plans, PR to
+`next`. A controller session verified each PR and merged it. Per-ticket
+evidence is in `2026-11-16-finishing-sort-eval-notes.md` (#16) and
+`2026-11-16-writing-plans-ticket-eval-notes.md` (#21).
+
+**What worked.** Tickets worked in parallel went well when their files didn't
+overlap. The follow-up list was used during the build itself and held 8
+review minors at the end.
+
+**What cost.**
+
+- Stacked PRs (a ticket branched off another ticket's unmerged branch) had to
+  be retargeted, and hit merge conflicts in append-only files:
+  `docs/upstream-sync.md` and `tests/sdd-helper-paths`.
+- `Closes #N` does not fire on a merge into a non-default branch, so every
+  ticket merged into `next` was closed by hand.
+- Two real defects surfaced only at integration review, not in any ticket's
+  own review: helper paths written relative to an injected skill's directory
+  (the agent never sees that directory; fixed with the session-start hook's
+  `{{SKILLS_DIR}}` substitution), and `tracker find` matching TEXT as one
+  literal substring, so multi-word searches miss (logged as a follow-up).
+
+**Clean-repo equivalence (#17).** Every free local suite was run on
+`ticket/17-integration` at 0.10.0-dev, with no tracker config and no
+follow-up list in the fixtures that test the clean path: followup, tracker
+(including the GitHub backend against the scratch repo), hooks, sdd-helper-
+paths, skill-size, skill-layout, shell-lint, antigravity, kimi, devin, codex,
+codex-plugin-sync, diagnosing-superpowers, systematic-debugging, the
+claude-code script tests, opencode (non-integration) and pi all passed.
+Failing for missing local tools only, unrelated to this work:
+`writing-skills` render-graphs (no graphviz), three brainstorm-server tests
+(`ws` not installed), `version-bump` (no `yq`), hermes (no `pytest`). Not run
+because they call a paid model: `tests/claude-code` skill and integration
+tests, `tests/explicit-skill-requests`, opencode `--integration`.
+
+**Verdict.** Continue with the ticket model. Branch a dependent ticket off
+`next` after its blockers merge, rather than stacking it on an unmerged
+ticket branch.
