@@ -104,5 +104,7 @@ After the sort, one line per disposition before Step 1, e.g.
 
 When your human partner asked to discard the work, the sort is reduced to
 **keep** (item stays open on the list, it outlives the branch) or **drop**
-(`FOLLOWUP done N --as dropped`), for this branch's items only. Ask it in
-the same message as the discard confirmation.
+(`FOLLOWUP done N --as dropped`), for this branch's items only. Ask it
+below the discard confirmation request; run the `done` calls after the
+typed `discard` arrives and before the branch is deleted. No confirmation:
+nothing changes.

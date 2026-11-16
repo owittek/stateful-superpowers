@@ -17,7 +17,8 @@ Run this skill's `scripts/followup list --open` by its absolute path, from
 the working tree you're executing in. It prints this branch's open
 follow-ups.
 
-**If it prints nothing:** say nothing about follow-ups; continue to Step 1.
+**If it prints nothing, or exits non-zero (a detached HEAD has no branch to
+tag follow-ups with):** say nothing about follow-ups; continue to Step 1.
 
 **Otherwise:** read `references/follow-up-sort.md` and sort them with your
 human partner now, before Step 1 — doing an item changes the code the
@@ -46,11 +47,14 @@ GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
 # before cleanup (Step 6) needs this value
 WORKTREE_PATH=$(git rev-parse --show-toplevel)
 # The ticket this branch works on, if any (written by writing-plans)
-TICKET=$(git config "branch.$(git branch --show-current).ticket" || true)
+BRANCH=$(git branch --show-current)
+TICKET=$([ -n "$BRANCH" ] && git config "branch.$BRANCH.ticket" || true)
 ```
 
 `TRACKER` below is this skill's `scripts/tracker`, run by its absolute
-path. Empty `TICKET`: skip every ticket line in Step 5.
+path. Empty `TICKET`: skip every ticket line in Step 5. If `TRACKER`
+refuses the backend (it can't reach GitHub yet), report that refusal and
+tell your human partner the ticket is resolved by hand.
 
 This determines which menu to show and how cleanup works:
 
@@ -147,8 +151,9 @@ With a `TICKET`:
   only when the PR merges into the default branch; for any other base, also
   tell your human partner the ticket is resolved by hand after the merge.
 - **Local ref:** no close keyword works. Write the PR URL to a temp file,
-  `TRACKER comment "$TICKET" <file>`, and say the ticket stays claimed
-  until it is resolved after the merge.
+  `TRACKER comment "$TICKET" <file>`, commit the changed ticket file on the
+  branch and push it, and say the ticket stays claimed until it is resolved
+  after the merge.
 
 Keep the worktree — your human partner iterates on PR feedback there.
 
@@ -171,8 +176,10 @@ This will permanently delete:
 Type 'discard' to confirm.
 ```
 
-If Step 0 found open follow-ups, ask in the same message whether to keep
-or drop each one (`references/follow-up-sort.md`, discard path).
+If `followup list --open` still prints items for this branch (Step 0 never
+ran, or kept some open), list them under the confirmation request and ask
+keep or drop for each (`references/follow-up-sort.md`, discard path); the
+typed `discard` is still required on its own.
 
 Wait for that exact confirmation. When it arrives:
 
