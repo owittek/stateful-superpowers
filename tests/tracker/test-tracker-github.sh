@@ -43,11 +43,22 @@ ghapi() {
   (cd "$TEST_ROOT" && gh api "$@")
 }
 
-# open_tagged -> number of open issues whose title carries this run's tag
-open_tagged() {
-  ghapi --paginate "repos/{owner}/{repo}/issues?state=open&per_page=100" \
-    --jq "[.[] | select(.title | contains(\"$RUN_TAG\"))] | length" \
-    | awk '{ s += $1 } END { print s + 0 }'
+# eventually DESCRIPTION LINE CMD... -> CMD's output contains LINE within
+# about 30 seconds: issue listings lag writes, so list-based ops are retried
+eventually() {
+  local description=$1 line=$2 out i
+  shift 2
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    out=$("$@" 2>&1) || true
+    if printf '%s\n' "$out" | grep -Fqx -- "$line"; then
+      pass "$description"
+      return 0
+    fi
+    [ "$i" = 10 ] || sleep 3
+  done
+  fail "$description"
+  echo "    expected line: $line"
+  printf '%s\n' "$out" | sed 's/^/      /'
 }
 
 repo=$(make_repo github "Issue tracker: GitHub")
@@ -82,13 +93,13 @@ assert_line "tickets carry the ticket label" ticket "$(ghapi "repos/{owner}/{rep
 assert_eq "the second is blocked by the first" "$n1" "$(ghapi "repos/{owner}/{repo}/issues/$n2/dependencies/blocked_by" --jq '.[].number')"
 assert_eq "the third is blocked by the first" "$n1" "$(ghapi "repos/{owner}/{repo}/issues/$n3/dependencies/blocked_by" --jq '.[].number')"
 assert_eq "the first has no blockers" "" "$(ghapi "repos/{owner}/{repo}/issues/$n1/dependencies/blocked_by" --jq '.[].number')"
-before=$(open_tagged)
 assert_fails "publishing with a missing blocker is refused" "no such ref: #999999" tracker "$repo" publish-ticket "$parent" ticket "Nope $RUN_TAG" "$body" "#999999"
 assert_fails "publishing under a missing parent is refused" "no such ref: #999999" tracker "$repo" publish-ticket "#999999" ticket "Nope $RUN_TAG" "$body"
 assert_fails "publishing with a malformed ref is refused" "no such ref: abc" tracker "$repo" publish-ticket abc ticket "Nope $RUN_TAG" "$body"
 assert_fails "publishing under a ticket is refused" "$t1 is not a parent" tracker "$repo" publish-ticket "$t1" ticket "Nope $RUN_TAG" "$body"
 assert_fails "publishing with a missing body file is refused" "no such file" tracker "$repo" publish-ticket "$parent" ticket "Nope $RUN_TAG" "$TEST_ROOT/missing.md"
-assert_eq "refused publishes create no issue" "$before" "$(open_tagged)"
+d4=$(created "$(tracker "$repo" publish-ticket "$parent" decision "Four $RUN_TAG" "$body")")
+assert_eq "refused publishes create no issue" "#$((n3 + 1))" "$d4"
 
 echo "tracker github: fetch"
 out=$(tracker "$repo" fetch "$t2")
@@ -108,5 +119,51 @@ assert_line "fetch on the parent prints open" "state: open" "$out"
 assert_line "fetch on the parent has no parent" "parent: none" "$out"
 assert_line "fetch on the parent has no blockers" "blockers: none" "$out"
 assert_fails "fetch of an unknown ref" "no such ref: #999999" tracker "$repo" fetch "#999999"
+
+echo "tracker github: frontier"
+assert_eq "frontier lists only the unblocked ticket" "$(printf '%s\t%s' "$t1" "One $RUN_TAG")" "$(tracker "$repo" frontier ticket "$parent")"
+assert_eq "frontier filters by kind" "$(printf '%s\t%s' "$d4" "Four $RUN_TAG")" "$(tracker "$repo" frontier decision "$parent")"
+eventually "frontier without a parent includes the ticket" "$(printf '%s\t%s' "$t1" "One $RUN_TAG")" tracker "$repo" frontier ticket
+assert_no_line "frontier without a parent skips blocked tickets" "$(printf '%s\t%s' "$t2" "Two $RUN_TAG")" "$(tracker "$repo" frontier ticket)"
+
+echo "tracker github: claim"
+me=$(gh api user --jq .login)
+assert_eq "claim prints ok" ok "$(tracker "$repo" claim "$t1")"
+assert_eq "claim assigns the current user" "$me" "$(ghapi "repos/{owner}/{repo}/issues/$n1" --jq '.assignees[].login')"
+assert_eq "claim by the same user twice succeeds" ok "$(tracker "$repo" claim "$t1")"
+assert_eq "a repeated claim keeps one assignee" "$me" "$(ghapi "repos/{owner}/{repo}/issues/$n1" --jq '.assignees[].login')"
+assert_line "fetch shows the claim" "state: claimed" "$(tracker "$repo" fetch "$t1")"
+assert_line "fetch shows the assignee" "assignee: $me" "$(tracker "$repo" fetch "$t1")"
+assert_eq "frontier is empty for the parent after the claim" "" "$(tracker "$repo" frontier ticket "$parent")"
+# A gh that reports someone else as the current user makes the real
+# assignee "another user"
+other_bin="$TEST_ROOT/other-user-bin"
+mkdir -p "$other_bin"
+printf '#!/usr/bin/env bash\nif [ "$1 $2" = "api user" ]; then echo someone-else; exit 0; fi\nexec %q "$@"\n' "$(command -v gh)" >"$other_bin/gh"
+chmod +x "$other_bin/gh"
+as_someone_else() {
+  PATH="$other_bin:$PATH" tracker "$@"
+}
+assert_fails "claim on a ticket assigned to another names them" "$t1 is claimed by $me" as_someone_else "$repo" claim "$t1"
+assert_eq "the refused claim leaves the assignee alone" "$me" "$(ghapi "repos/{owner}/{repo}/issues/$n1" --jq '.assignees[].login')"
+assert_fails "claim on a parent is refused" "$parent is a parent, not a ticket" tracker "$repo" claim "$parent"
+assert_fails "claim of an unknown ref" "no such ref: #999999" tracker "$repo" claim "#999999"
+
+echo "tracker github: comment"
+note="$TEST_ROOT/note.md"
+printf 'PR opened: https://example.test/pr/1\n' >"$note"
+assert_eq "comment prints ok" ok "$(tracker "$repo" comment "$t1" "$note")"
+assert_line "comment posts the text" "PR opened: https://example.test/pr/1" "$(ghapi "repos/{owner}/{repo}/issues/$n1/comments" --jq '.[].body')"
+assert_fails "comment with a missing text file is refused" "no such file" tracker "$repo" comment "$t1" "$TEST_ROOT/missing.md"
+assert_fails "comment on an unknown ref" "no such ref: #999999" tracker "$repo" comment "#999999" "$note"
+
+echo "tracker github: resolve"
+assert_eq "resolve prints ok" ok "$(tracker "$repo" resolve "$t1" "merge abc1234")"
+assert_eq "resolve closes the issue" closed "$(ghapi "repos/{owner}/{repo}/issues/$n1" --jq .state)"
+assert_line "resolve comments what resolved it" "Resolved by merge abc1234" "$(ghapi "repos/{owner}/{repo}/issues/$n1/comments" --jq '.[].body')"
+assert_line "fetch shows done" "state: done" "$(tracker "$repo" fetch "$t1")"
+assert_eq "frontier lists both others after the resolve" "$(printf '%s\t%s\n%s\t%s' "$t2" "Two $RUN_TAG" "$t3" "Three $RUN_TAG")" "$(tracker "$repo" frontier ticket "$parent")"
+assert_fails "claim on a done ticket is refused" "$t1 is done" tracker "$repo" claim "$t1"
+assert_fails "resolve of an unknown ref" "no such ref: #999999" tracker "$repo" resolve "#999999" x
 
 finish

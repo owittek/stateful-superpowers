@@ -626,6 +626,86 @@ github_fetch() {
   [ -z "$body" ] || printf '%s\n' "$body"
 }
 
+
+# json_string TEXT -> TEXT as a JSON string literal, for splicing into a jq
+# filter (gh's --jq takes no --arg)
+json_string() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\t'/\\t}
+  s=${s//$'\r'/\\r}
+  printf '"%s"\n' "$s"
+}
+
+# gh_open_blockers N -> how many of N's blocked-by issues are open. Read from
+# the dependency list, not issue_dependencies_summary: the summary lags edits
+# and closes by seconds.
+gh_open_blockers() {
+  ghx api --paginate "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" \
+    --jq 'map(select(.state == "open")) | length' | awk '{ s += $1 } END { print s + 0 }'
+}
+
+# Listings (sub-issues, issues by label) lag writes by seconds, so each
+# candidate's state and assignees are re-read from the issue itself.
+github_frontier() {
+  local kind=$1 lit pnum n title info filter
+  lit=$(json_string "$kind")
+  filter=".[] | select(.pull_request == null and .state == \"open\" and (.assignees | length) == 0 and (.labels | map(.name) | index($lit))) | \"\(.number)\t\(.title)\""
+  if [ $# -eq 2 ]; then
+    pnum=$(gh_num "$2")
+    gh_issue "$pnum" >/dev/null
+    set -- "repos/{owner}/{repo}/issues/$pnum/sub_issues?per_page=100"
+  else
+    set -- "repos/{owner}/{repo}/issues?state=open&per_page=100&labels=$kind"
+  fi
+  ghx api --paginate "$1" --jq "$filter" | sort -n | while IFS=$'\t' read -r n title; do
+    [ -n "$n" ] || continue
+    info=$(gh_issue "$n")
+    [ "$(sed -n 1p <<<"$info")" = open ] || continue
+    [ -z "$(sed -n 2p <<<"$info")" ] || continue
+    [ "$(gh_open_blockers "$n")" = 0 ] || continue
+    printf '#%s\t%s\n' "$n" "$title"
+  done
+}
+
+github_claim() {
+  local n info assignees me
+  n=$(gh_num "$1")
+  info=$(gh_issue "$n")
+  if in_list "$(gh_kind_of "$(sed -n 3p <<<"$info")")" "$GH_PARENT_KINDS"; then
+    die "#$n is a parent, not a ticket"
+  fi
+  [ "$(sed -n 1p <<<"$info")" = open ] || die "#$n is done"
+  me=$(ghx api user --jq .login)
+  assignees=$(sed -n 2p <<<"$info")
+  if [ -n "$assignees" ]; then
+    in_list "$me" "${assignees//,/ }" || die "#$n is claimed by ${assignees//,/, }"
+    echo ok
+    return 0
+  fi
+  ghx issue edit "$n" --add-assignee @me >/dev/null
+  echo ok
+}
+
+github_comment() {
+  local n
+  n=$(gh_num "$1")
+  [ -f "$2" ] || die "no such file: $2"
+  gh_call "no such ref: #$n" issue comment "$n" --body-file "$2" >/dev/null
+  echo ok
+}
+
+github_resolve() {
+  local n info
+  n=$(gh_num "$1")
+  info=$(gh_issue "$n")
+  ghx issue comment "$n" --body "Resolved by $2" >/dev/null
+  [ "$(sed -n 1p <<<"$info")" != open ] || ghx issue close "$n" >/dev/null
+  echo ok
+}
+
 # --- dispatch ---------------------------------------------------------------
 
 if [ "${1:-}" = "-C" ]; then
