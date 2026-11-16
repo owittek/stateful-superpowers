@@ -1,5 +1,27 @@
 # Superpowers Release Notes
 
+## v0.10.0-dev (2026-11-16)
+
+Stateful Superpowers pre-release on `next`. Things you find mid-task now go on a follow-up list instead of being chased or forgotten, and finishing a branch asks you to sort them. A repo can also be worked from an issue tracker, ticket by ticket, through the skills you already use. No new skills. A repo with no tracker config and no follow-ups behaves as 0.9.0.
+
+### Follow-ups
+
+- **"Note that for later" puts it on a list and gets back to work.** The list is one git-ignored file per repo, `.superpowers/followups.md` in the main checkout, with each item tagged by branch. A worktree can be removed without losing its items. (#19, #22)
+- **Review minors, deferred minors and adjacent bugs land there too.** requesting- and receiving-code-review, systematic-debugging, and the finish of subagent-driven-development and executing-plans each add theirs. Before, SDD's deferred minors were printed once in its final message and the workspace holding them was deleted. (#22)
+- **After a compaction, Claude Code sessions are told how many follow-ups are open.** The session-start hook counts them with shell builtins only and reads its input only when the list has open items. (#22)
+- **handoff points at the list instead of copying it,** unless the work is leaving the repo or machine. (#22)
+
+### Finishing a branch
+
+- **finishing-a-development-branch sorts this branch's follow-ups before it runs the tests.** One message lists each with a recommendation (do it now, make it a ticket, or drop it) and you answer once. A ticket is only made when no open one matches. With no follow-ups, finishing reads as before. (#16)
+- **A branch worked from a ticket closes it.** A local merge resolves the ticket. A PR for a GitHub ticket gets `Closes <ref>` in its body (GitHub closes it only when the PR targets the default branch); a local ticket gets a comment with the PR link and stays claimed. Keeping the branch leaves it claimed. (#16)
+
+### Working from a tracker
+
+- **`tracker init github` or `tracker init local` sets the tracker up.** It writes `docs/agents/issue-tracker.md` (the format Matt Pocock's skills read) and, on GitHub, the kind labels. Local tickets are Markdown files under `docs/superpowers/tickets/`. (#11, #13, #20)
+- **"Work on #12" goes to writing-plans.** It refuses a blocked or someone else's ticket, claims it, makes the branch, records the ticket on it, and plans only that ticket's acceptance criteria. Asking again after a compaction picks up the existing plan. (#21)
+- **"What's next" lists the unblocked tracker tickets, including follow-up tickets.** You pick one, and writing-plans takes it from there. (#21)
+
 ## v7.0.2 (2026-11-03)
 
 This release further tunes brainstorming's questions. It asks fewer of them, starts by asking why, and when there's a choice to make it gives you options to pick from. It also fixes bootstrap problems on six harnesses, and makes the SDD and executing-plans helper scripts much harder to point at the wrong repository or the wrong task.

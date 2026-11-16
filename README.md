@@ -22,6 +22,7 @@ Superpowers is a complete software development methodology for your coding agent
   - [Hermes Agent](#hermes-agent)
   - [Muse](#muse)
 - [The Basic Workflow](#the-basic-workflow)
+- [Follow-ups and Tickets](#follow-ups-and-tickets)
 - [When Something Goes Wrong](#when-something-goes-wrong)
 - [Community](#community)
 - [What's Inside](#whats-inside)
@@ -299,6 +300,18 @@ Restart any active Muse sessions after installing so the `SessionStart` hook tak
 7. **finishing-a-development-branch** - Activates when tasks complete. Verifies tests, presents options (merge/PR/keep/discard), cleans up worktree.
 
 **The agent checks for relevant skills before any task.** Mandatory workflows, not suggestions.
+
+## Follow-ups and Tickets
+
+Building a feature turns up things that aren't the current step: a review minor, a small bug next to the one you're fixing, a convention that drifted. Chasing them derails the feature; leaving them in chat loses them. So they get noted at discovery and decided late.
+
+**The follow-up list.** Say "note that for later" (or "follow up on X") and your agent adds it to one list for the repo, tagged with the current branch, and goes back to work. Code review minors, deferred minors from subagent-driven-development and executing-plans, and adjacent bugs found while debugging land there too. The list is `.superpowers/followups.md` in the main checkout, git-ignored, so it survives worktree removal and compaction.
+
+**The sort.** Before **finishing-a-development-branch** runs the tests, it shows this branch's open follow-ups, each with a recommendation: do it **now**, make it a **ticket**, or **drop** it. You confirm or change them in one reply. Only what you choose to defer becomes a ticket, and an existing open ticket is reused rather than duplicated.
+
+**Working from a tracker.** Optional. `tracker init github` (or `local`, for ticket files in the repo) writes `docs/agents/issue-tracker.md`. Then "work on #12" goes to **writing-plans**, which checks blockers, claims the ticket, makes the branch and plans only that ticket's acceptance criteria; finishing resolves it on a local merge, or puts `Closes #12` in a GitHub PR body (GitHub acts on that only when the PR targets the default branch). "What's next" lists the unblocked tracker tickets, including follow-ups you deferred to tickets, for you to pick from.
+
+None of this adds a skill, and a repo with no tracker config and no follow-ups works exactly as before.
 
 ## When Something Goes Wrong
 
