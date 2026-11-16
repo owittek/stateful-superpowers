@@ -462,16 +462,34 @@ gh_preflight() {
   gh auth status >/dev/null 2>&1 || die "gh is not authenticated: run gh auth login"
 }
 
-# ghx ARGS... -> gh's stdout; on failure die with gh's last non-empty stderr
-# line, so every failure stays one line
-ghx() {
-  local err out status=0 msg
+# gh_call ON404 ARGS... -> gh's stdout. On failure die with gh's last
+# non-empty stderr line, so every failure stays one line. ON404 handles a
+# missing issue (HTTP 404/410, or GraphQL's "Could not resolve"): "-" treats
+# it like any failure, "quiet" succeeds with no output, anything else is the
+# message to die with.
+gh_call() {
+  local on404=$1 err out status=0 msg
+  shift
   err=$(mktemp)
   out=$(gh "$@" 2>"$err") || status=$?
   msg=$(sed '/^[[:space:]]*$/d' "$err" | tail -n 1)
   rm -f "$err"
-  [ "$status" -eq 0 ] || die "gh: ${msg:-gh $1 failed}"
+  if [ "$status" -ne 0 ]; then
+    case "$on404:$msg" in
+      -:*) ;;
+      *"HTTP 404"* | *"HTTP 410"* | *"Could not resolve to an"*)
+        [ "$on404" = quiet ] && return 0
+        die "$on404"
+        ;;
+    esac
+    die "gh: ${msg:-gh $1 failed}"
+  fi
   [ -z "$out" ] || printf '%s\n' "$out"
+}
+
+# ghx ARGS... -> gh_call with no special handling of a missing issue
+ghx() {
+  gh_call - "$@"
 }
 
 # gh_num REF -> the issue number of "#N" or "N", or die
@@ -481,6 +499,131 @@ gh_num() {
     "" | *[!0-9]*) die "no such ref: $1" ;;
   esac
   printf '%s\n' "$n"
+}
+
+
+# Kinds are labels of the same name. A parent kind marks an issue that
+# tickets hang under; a child kind marks a claimable ticket.
+GH_PARENT_KINDS="spec map followups"
+GH_CHILD_KINDS="ticket decision followup"
+
+# in_list WORD LIST -> success when WORD is one of LIST's space-separated words
+in_list() {
+  case " $2 " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+# gh_kind_of LABELS -> the first comma-separated label that is a known kind,
+# else the first label, else ""
+gh_kind_of() {
+  local label first="" IFS=,
+  for label in $1; do
+    [ -n "$first" ] || first=$label
+    if in_list "$label" "$GH_PARENT_KINDS $GH_CHILD_KINDS"; then
+      printf '%s\n' "$label"
+      return 0
+    fi
+  done
+  printf '%s\n' "$first"
+}
+
+# gh_issue N -> five lines: state, assignee logins (comma-separated), labels
+# (comma-separated), title, database id; or die "no such ref: #N"
+gh_issue() {
+  gh_call "no such ref: #$1" api "repos/{owner}/{repo}/issues/$1" --jq \
+    '"\(.state)\n\(.assignees | map(.login) | join(","))\n\(.labels | map(.name) | join(","))\n\(.title)\n\(.id)"'
+}
+
+# gh_ensure_label KIND -> create the kind label unless it exists
+gh_ensure_label() {
+  local err status=0 msg
+  err=$(mktemp)
+  gh label create "$1" --description "Tracker kind: $1" >/dev/null 2>"$err" || status=$?
+  msg=$(sed '/^[[:space:]]*$/d' "$err" | tail -n 1)
+  rm -f "$err"
+  [ "$status" -eq 0 ] && return 0
+  case "$msg" in
+    *"already exists"*) return 0 ;;
+  esac
+  die "gh: ${msg:-cannot create label $1}"
+}
+
+# gh_create KIND TITLE BODY_FILE -> "N<TAB>id" of a new issue labelled KIND
+gh_create() {
+  gh_ensure_label "$1"
+  ghx api --method POST "repos/{owner}/{repo}/issues" -f title="$2" -F body=@"$3" \
+    -f "labels[]=$1" --jq '"\(.number)\t\(.id)"'
+}
+
+github_register_parent() {
+  local kind=$1 title=$2 spec_path=$3 sha=$4 summary_file=${5:-} body created
+  if [ -n "$summary_file" ]; then
+    [ -f "$summary_file" ] || die "no such file: $summary_file"
+  fi
+  body=$(mktemp)
+  {
+    printf 'Spec: %s @ %s\n' "$spec_path" "$sha"
+    [ -z "$summary_file" ] || { printf '\n'; cat "$summary_file"; }
+  } >"$body"
+  created=$(gh_create "$kind" "$title" "$body") || { rm -f "$body"; exit 1; }
+  rm -f "$body"
+  printf '#%s\n' "${created%%$'\t'*}"
+}
+
+github_publish_ticket() {
+  local parent=$1 kind=$2 title=$3 body_file=$4
+  shift 4
+  local pnum="" info ref n ids="" created num id
+  if [ "$parent" = - ]; then
+    [ "$kind" = followup ] || die "parent - is only for kind followup"
+  else
+    pnum=$(gh_num "$parent")
+    info=$(gh_issue "$pnum")
+    if in_list "$(gh_kind_of "$(sed -n 3p <<<"$info")")" "$GH_CHILD_KINDS"; then
+      die "#$pnum is not a parent"
+    fi
+  fi
+  [ -f "$body_file" ] || die "no such file: $body_file"
+  for ref in "$@"; do
+    n=$(gh_num "$ref")
+    info=$(gh_issue "$n")
+    ids="$ids $(sed -n 5p <<<"$info")"
+  done
+  # The standing parent is created only once the publish is known to succeed
+  [ -n "$pnum" ] || pnum=$(github_followups_parent)
+  created=$(gh_create "$kind" "$title" "$body_file")
+  num=${created%%$'\t'*}
+  id=${created#*$'\t'}
+  ghx api --method POST "repos/{owner}/{repo}/issues/$pnum/sub_issues" -F sub_issue_id="$id" >/dev/null
+  for id in $ids; do
+    ghx api --method POST "repos/{owner}/{repo}/issues/$num/dependencies/blocked_by" -F issue_id="$id" >/dev/null
+  done
+  printf '#%s\n' "$num"
+}
+
+github_fetch() {
+  local n info state assignees labels kind parent blockers body
+  n=$(gh_num "$1")
+  info=$(gh_issue "$n")
+  state=$(sed -n 1p <<<"$info")
+  assignees=$(sed -n 2p <<<"$info")
+  labels=$(sed -n 3p <<<"$info")
+  kind=$(gh_kind_of "$labels")
+  if [ "$state" = closed ]; then
+    state="done"
+  elif in_list "$kind" "$GH_PARENT_KINDS"; then
+    state=open
+  elif [ -n "$assignees" ]; then
+    state=claimed
+  else
+    state=ready
+  fi
+  parent=$(gh_call quiet api "repos/{owner}/{repo}/issues/$n/parent" --jq '"#\(.number)"')
+  blockers=$(ghx api --paginate "repos/{owner}/{repo}/issues/$n/dependencies/blocked_by" --jq '.[] | "#\(.number)"' | tr '\n' ' ' | sed 's/ $//')
+  body=$(ghx api "repos/{owner}/{repo}/issues/$n" --jq '.body // ""')
+  printf 'ref: #%s\nkind: %s\ntitle: %s\nstate: %s\nassignee: %s\nparent: %s\nblockers: %s\n\n' \
+    "$n" "${kind:-none}" "$(sed -n 4p <<<"$info")" "$state" "${assignees:-none}" "${parent:-none}" "${blockers:-none}"
+  [ -z "$body" ] || printf '%s\n' "$body"
 }
 
 # --- dispatch ---------------------------------------------------------------
