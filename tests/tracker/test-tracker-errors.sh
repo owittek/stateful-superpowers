@@ -21,13 +21,19 @@ echo "tracker: usage"
 status=0
 out=$("$TRACKER" 2>&1) || status=$?
 assert_eq "no op exits 2" 2 "$status"
-assert_line "no op prints usage" "usage: tracker <op> [args]" "$out"
+assert_line "no op prints usage" "usage: tracker [-C DIR] <op> [args]" "$out"
 status=0
 "$TRACKER" frobnicate >/dev/null 2>&1 || status=$?
 assert_eq "unknown op exits 2" 2 "$status"
 status=0
 "$TRACKER" fetch >/dev/null 2>&1 || status=$?
 assert_eq "wrong arity exits 2" 2 "$status"
+status=0
+"$TRACKER" -C "$TEST_ROOT/missing" fetch x/01 >/dev/null 2>&1 || status=$?
+assert_eq "-C with a missing directory exits 2" 2 "$status"
+status=0
+"$TRACKER" -C >/dev/null 2>&1 || status=$?
+assert_eq "-C without a directory exits 2" 2 "$status"
 
 echo "tracker: outside a git work tree"
 outside="$TEST_ROOT/outside"

@@ -53,6 +53,14 @@ tracker() {
   (cd "$repo" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" GIT_CONFIG_NOSYSTEM=1 "$TRACKER" "$@")
 }
 
+# tracker_c REPO OP [ARGS...] -> run the script under test from outside REPO,
+# pointed at it with -C
+tracker_c() {
+  local repo=$1
+  shift
+  (cd "$TEST_ROOT" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" GIT_CONFIG_NOSYSTEM=1 "$TRACKER" -C "$repo" "$@")
+}
+
 # assert_eq DESCRIPTION EXPECTED ACTUAL
 assert_eq() {
   if [ "$2" = "$3" ]; then

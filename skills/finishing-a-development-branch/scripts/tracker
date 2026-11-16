@@ -36,7 +36,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-usage: tracker <op> [args]
+usage: tracker [-C DIR] <op> [args]
   register-parent KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]  -> ref
   publish-ticket  PARENT KIND TITLE BODY_FILE [BLOCKER...]  -> ref
   frontier        KIND [PARENT]                             -> ref<TAB>title per line
@@ -345,6 +345,11 @@ local_resolve() {
 
 # --- dispatch ---------------------------------------------------------------
 
+if [ "${1:-}" = "-C" ]; then
+  [ -d "${2:-}" ] || { echo "bad -C directory: ${2:-}" >&2; exit 2; }
+  cd "$2"
+  shift 2
+fi
 [ $# -ge 1 ] || usage
 op=$1
 shift

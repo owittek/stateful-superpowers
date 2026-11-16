@@ -154,4 +154,17 @@ assert_line "fetch shows done" "state: done" "$(tracker "$repo" fetch "$t1")"
 assert_eq "frontier lists the other two after the resolve" "$(printf 'tracker-bridge-design/02\tGitHub adapter\ntracker-bridge-design/03\tSetup wizard')" "$(tracker "$repo" frontier ticket "$parent")"
 assert_fails "claim on a done ticket is refused" "tracker-bridge-design/01 is done" tracker "$repo" claim "$t1"
 
+echo "tracker: -C DIR"
+cparent=$(tracker_c "$repo" register-parent spec "Dash C" docs/c.md 2222222)
+assert_eq "-C register-parent" "dash-c/00" "$cparent"
+ct=$(tracker_c "$repo" publish-ticket "$cparent" ticket "Via dash C" "$body")
+assert_eq "-C publish-ticket" "dash-c/01" "$ct"
+assert_eq "-C frontier" "$(printf 'dash-c/01\tVia dash C')" "$(tracker_c "$repo" frontier ticket "$cparent")"
+assert_line "-C fetch" "title: Via dash C" "$(tracker_c "$repo" fetch "$ct")"
+assert_eq "-C claim" ok "$(tracker_c "$repo" claim "$ct")"
+assert_eq "-C claim commits in the target repo" "chore(tracker): claim dash-c/01" "$(g -C "$repo" log -1 --format=%s)"
+assert_eq "-C comment" ok "$(tracker_c "$repo" comment "$ct" "$note")"
+assert_eq "-C resolve" ok "$(tracker_c "$repo" resolve "$ct" "merge def5678")"
+assert_line "-C resolve lands in the target repo" "state: done" "$(tracker "$repo" fetch "$ct")"
+
 finish
