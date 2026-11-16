@@ -299,6 +299,11 @@ line under "Deferred minors". Both lists are exhaustive. Your final
 message is the only place the decisions you took on your human partner's
 behalf — and the findings you chose not to act on — reach them.
 
+Then put each `minor (deferred)` line on the follow-up list, one call each:
+`../finishing-a-development-branch/scripts/followup add "<one-liner>" --source exec:<plan-basename>`,
+run by its absolute path, from the working tree you're executing in.
+Rulings stay rulings: they are not follow-ups.
+
 When the final review is clean and its fixes are committed, delete this
 plan's workspace directory — the git history is the record now. Sibling
 directories belong to other plans; leave them alone.
