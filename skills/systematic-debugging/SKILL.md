@@ -183,6 +183,10 @@ You MUST complete each phase before proceeding to the next.
    - ONE change at a time
    - No "while I'm here" improvements
    - No bundled refactoring
+   - An adjacent bug found while tracing goes on the follow-up list:
+     `../finishing-a-development-branch/scripts/followup add "<bug>" --source debug` by its absolute path,
+     from the working tree you're executing in. Say "Noted as follow-up N."
+     and stay on this bug
 
 3. **Verify Fix**
    - Test passes now?

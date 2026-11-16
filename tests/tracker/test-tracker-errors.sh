@@ -53,8 +53,54 @@ assert_every_op_fails "$jira" '"Jira" is not supported' "on an unknown backend r
 noh1=$(make_repo noh1)
 printf 'Just prose, no heading.\n' >"$noh1/docs/agents/issue-tracker.md"
 assert_every_op_fails "$noh1" "no H1 naming the issue tracker" "without a backend H1 refuses"
+
+echo "tracker: GitHub backend without a usable gh"
 github=$(make_repo github "Issue tracker: GitHub")
-assert_every_op_fails "$github" "not implemented yet" "on the GitHub backend reports it is not implemented"
+(
+  gh_unauth_env
+  assert_every_op_fails "$github" "gh is not authenticated: run gh auth login" "with gh unauthenticated fails loudly"
+  [ "$FAILURES" -eq 0 ]
+) || FAILURES=$((FAILURES + 1))
+(
+  path_without_gh
+  assert_every_op_fails "$github" "gh is not installed" "without gh fails loudly"
+  [ "$FAILURES" -eq 0 ]
+) || FAILURES=$((FAILURES + 1))
+
+echo "tracker: GitHub backend when gh calls fail midway"
+# A stub gh: authenticated, with canned answers for a few issues and HTTP 502
+# on the calls each case below breaks; it logs every call
+stub="$TEST_ROOT/stub-gh-fail"
+mkdir -p "$stub"
+cat >"$stub/gh" <<'STUB_EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$GH_STUB_LOG"
+fail502() { echo "gh: Server Error (HTTP 502)" >&2; exit 1; }
+case "$*" in
+  "auth status") exit 0 ;;
+  "label create"*) exit 0 ;;
+  *"issues/5/dependencies/blocked_by"*) fail502 ;;
+  *"issues?state=open&per_page=100&labels=ticket"*) printf '5\tT\n' ;;
+  *"issues?state=open&labels=followups"*) fail502 ;;
+  "api repos/{owner}/{repo}/issues/5 "*) printf 'open\n\nticket\nT\n555\n' ;;
+  "api repos/{owner}/{repo}/issues/1 "*) printf 'open\n\nspec\nP\n111\n' ;;
+  "api --method POST repos/{owner}/{repo}/issues -f"*) printf '7\t777\n' ;;
+  *"issues/1/sub_issues"*) fail502 ;;
+  *) echo "stub gh: unexpected call: $*" >&2; exit 1 ;;
+esac
+STUB_EOF
+chmod +x "$stub/gh"
+export GH_STUB_LOG="$TEST_ROOT/stub-gh-fail.log"
+: >"$GH_STUB_LOG"
+stub_body="$TEST_ROOT/stub-body.md"
+printf 'Body\n' >"$stub_body"
+stubbed() {
+  PATH="$stub:$PATH" tracker "$@"
+}
+assert_fails "frontier fails when a blocker lookup fails" "HTTP 502" stubbed "$github" frontier ticket
+assert_fails "a follow-up publish fails when the Follow-ups lookup fails" "HTTP 502" stubbed "$github" publish-ticket - followup "A title" "$stub_body"
+if grep -q '^api --method POST' "$GH_STUB_LOG"; then fail "a failed Follow-ups lookup creates nothing"; else pass "a failed Follow-ups lookup creates nothing"; fi
+assert_fails "a publish whose linking fails names the created issue" "created #7 but could not link it" stubbed "$github" publish-ticket "#1" ticket "A title" "$stub_body"
 
 echo "tracker: unknown refs"
 local=$(make_repo local)
