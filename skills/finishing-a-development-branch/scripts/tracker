@@ -471,7 +471,7 @@ case "$op" in
   fetch | claim) [ $# -eq 1 ] || usage ;;
   resolve | comment) [ $# -eq 2 ] || usage ;;
   find) [ $# -eq 2 ] && [ -n "$2" ] || usage ;;
-  init) [ $# -eq 1 ] && { [ "$1" = local ] || [ "$1" = github ]; } || usage ;;
+  init) [ "$*" = local ] || [ "$*" = github ] || usage ;;
   *) usage ;;
 esac
 
