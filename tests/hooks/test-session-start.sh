@@ -351,6 +351,133 @@ assert_command_output \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     "$bash_bin" -c 'cd "$1" && exec "$2" "$3"' _ "$backslash_cwd" "$bash_bin" "$backslash_hook"
 
+# The injected using-superpowers text names the follow-up helper by absolute
+# path: the agent never sees that skill's directory, so a relative path from
+# it leads nowhere.
+assert_command_output \
+    "injected routing names the followup helper by absolute path" \
+    "nested" \
+    "$REPO_ROOT/skills/finishing-a-development-branch/scripts/followup add" \
+    "{{SKILLS_DIR}}" \
+    "$(make_home followup-path)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    "$bash_bin" "$HOOK_UNDER_TEST"
+
+# Compaction reminder: on "compact" only, with open items in the project's
+# follow-up list, the context gains one count line. Claude Code passes the
+# SessionStart source on stdin as JSON.
+followup_project="$TEST_ROOT/followup-project"
+mkdir -p "$followup_project/.superpowers"
+printf '%s\n%s\n%s' \
+    '- [ ] 1. [main] first open (review)' \
+    '- [x] 2. [main] closed one → dropped' \
+    '- [ ] 3. [feat] second open, no newline' \
+    > "$followup_project/.superpowers/followups.md"
+closed_project="$TEST_ROOT/closed-project"
+mkdir -p "$closed_project/.superpowers"
+printf '%s\n' '- [x] 1. [main] closed → now' > "$closed_project/.superpowers/followups.md"
+clean_project="$TEST_ROOT/clean-project"
+mkdir -p "$clean_project"
+
+stdin_dir="$TEST_ROOT/stdin"
+mkdir -p "$stdin_dir"
+for source in startup resume clear compact; do
+    printf '{"session_id":"abc","hook_event_name":"SessionStart","source":"%s"}' "$source" \
+        > "$stdin_dir/$source.json"
+done
+printf '{\n  "session_id": "abc",\n  "source": "compact"\n}\n' > "$stdin_dir/compact-spaced.json"
+
+reminder="Open follow-ups: 2 in .superpowers/followups.md"
+
+assert_command_output \
+    "compact with two open follow-ups appends the count line" \
+    "nested" \
+    "$reminder" \
+    "" \
+    "$(make_home followup-compact)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    CLAUDE_PROJECT_DIR="$followup_project" \
+    "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/compact.json"
+
+assert_command_output \
+    "compact source with spaced JSON still appends the count line" \
+    "nested" \
+    "$reminder" \
+    "" \
+    "$(make_home followup-compact-spaced)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    CLAUDE_PROJECT_DIR="$followup_project" \
+    "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/compact-spaced.json"
+
+assert_command_output \
+    "startup with open follow-ups adds no count line" \
+    "nested" \
+    "" \
+    "Open follow-ups:" \
+    "$(make_home followup-startup)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    CLAUDE_PROJECT_DIR="$followup_project" \
+    "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/startup.json"
+
+assert_command_output \
+    "compact with no follow-up list adds no count line" \
+    "nested" \
+    "" \
+    "Open follow-ups:" \
+    "$(make_home followup-none)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    CLAUDE_PROJECT_DIR="$clean_project" \
+    "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/compact.json"
+
+assert_command_output \
+    "compact with only closed follow-ups adds no count line" \
+    "nested" \
+    "" \
+    "Open follow-ups:" \
+    "$(make_home followup-closed)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    CLAUDE_PROJECT_DIR="$closed_project" \
+    "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/compact.json"
+
+# A clean repo (no list) behaves as 0.9.0: for every source the output is
+# byte-identical to a run with no project dir and no stdin.
+baseline="$(env -i PATH="${PATH:-}" HOME="$TEST_ROOT" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    "$bash_bin" "$HOOK_UNDER_TEST" < /dev/null)"
+for source in startup resume clear compact; do
+    clean_out="$(env -i PATH="${PATH:-}" HOME="$TEST_ROOT" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+        CLAUDE_PROJECT_DIR="$clean_project" \
+        "$bash_bin" "$HOOK_UNDER_TEST" < "$stdin_dir/$source.json")"
+    if [[ "$clean_out" == "$baseline" ]]; then
+        pass "clean repo on $source: output byte-identical to baseline"
+    else
+        fail "clean repo on $source: output byte-identical to baseline"
+    fi
+done
+
+# A stdin the harness never closes must not hang the hook or lose the
+# source: the writer sends the whole JSON, then holds the pipe open for 3s.
+# The hook must finish first and still emit the count line, under bash and
+# under zsh (run-hook.cmd's fallback when bash is missing).
+open_runners=("$bash_bin")
+if open_zsh="$(command -v zsh)"; then
+    open_runners+=("$open_zsh")
+fi
+for open_runner in "${open_runners[@]}"; do
+    open_out="$TEST_ROOT/open-stdin-${open_runner##*/}.out"
+    { printf '{"session_id":"abc","source":"compact"}\n'; sleep 3; } | env -i PATH="${PATH:-}" HOME="$TEST_ROOT" \
+        CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CLAUDE_PROJECT_DIR="$followup_project" OUT="$open_out" \
+        "$bash_bin" -c 's=$SECONDS; "$@" > "$OUT"; echo "$((SECONDS - s))" > "$OUT.elapsed"' \
+        _ "$open_runner" "$HOOK_UNDER_TEST"
+    open_elapsed=""
+    IFS= read -r open_elapsed < "$open_out.elapsed" || true
+    if [[ "$open_elapsed" =~ ^[0-9]+$ ]] && ((open_elapsed < 3)) &&
+        grep -q "$reminder" "$open_out"; then
+        pass "stdin left open under ${open_runner##*/}: hook finishes (${open_elapsed}s) with the count line"
+    else
+        fail "stdin left open under ${open_runner##*/}: hook finishes with the count line (elapsed: ${open_elapsed:-?}s)"
+    fi
+done
+
 # EPIPE on Windows + Git Bash (#1612): the harness can close the hook's stdout
 # before the JSON is written. The hook must still exit 0 with nothing on
 # stderr, directly and through run-hook.cmd. The reader (:) exits without

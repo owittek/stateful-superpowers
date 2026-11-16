@@ -41,6 +41,13 @@ took on your human partner's behalf reach them — they read it and rework
 whatever you got wrong. A ruling that dies with the workspace was a decision
 made in secret.
 
+Then put every ledger line containing `minor (deferred)` that the final fix
+wave did not address on the follow-up list, one call each:
+`../finishing-a-development-branch/scripts/followup add "<one-liner>" --source sdd:<plan-basename>`,
+run by its absolute path, from the working tree you're executing in. You
+judge "addressed": you dispatched that fix list. Parked findings are
+rulings, not follow-ups; they stay in "Rulings I made" only.
+
 When the final whole-branch review is clean and its fixes are merged,
 delete this plan's workspace (`rm -rf <workspace>`) — the git history is
 the record now. Sibling directories belong to other plans; leave them
