@@ -14,13 +14,13 @@ Stateful Superpowers pre-release on `next`. Things you find mid-task now go on a
 ### Finishing a branch
 
 - **finishing-a-development-branch sorts this branch's follow-ups before it runs the tests.** One message lists each with a recommendation (do it now, make it a ticket, or drop it) and you answer once. A ticket is only made when no open one matches. With no follow-ups, finishing reads as before. (#16)
-- **A branch worked from a ticket closes it.** A local merge resolves the ticket, a PR body gets `Closes <ref>`, and keeping the branch leaves it claimed. (#16)
+- **A branch worked from a ticket closes it.** A local merge resolves the ticket. A PR for a GitHub ticket gets `Closes <ref>` in its body (GitHub closes it only when the PR targets the default branch); a local ticket gets a comment with the PR link and stays claimed. Keeping the branch leaves it claimed. (#16)
 
 ### Working from a tracker
 
 - **`tracker init github` or `tracker init local` sets the tracker up.** It writes `docs/agents/issue-tracker.md` (the format Matt Pocock's skills read) and, on GitHub, the kind labels. Local tickets are Markdown files under `docs/superpowers/tickets/`. (#11, #13, #20)
 - **"Work on #12" goes to writing-plans.** It refuses a blocked or someone else's ticket, claims it, makes the branch, records the ticket on it, and plans only that ticket's acceptance criteria. Asking again after a compaction picks up the existing plan. (#21)
-- **"What's next" lists the unblocked tickets and follow-ups.** You pick one, and writing-plans takes it from there. (#21)
+- **"What's next" lists the unblocked tracker tickets, including follow-up tickets.** You pick one, and writing-plans takes it from there. (#21)
 
 ## v7.0.2 (2026-11-03)
 

@@ -309,7 +309,7 @@ Building a feature turns up things that aren't the current step: a review minor,
 
 **The sort.** Before **finishing-a-development-branch** runs the tests, it shows this branch's open follow-ups, each with a recommendation: do it **now**, make it a **ticket**, or **drop** it. You confirm or change them in one reply. Only what you choose to defer becomes a ticket, and an existing open ticket is reused rather than duplicated.
 
-**Working from a tracker.** Optional. `tracker init github` (or `local`, for ticket files in the repo) writes `docs/agents/issue-tracker.md`. Then "work on #12" goes to **writing-plans**, which checks blockers, claims the ticket, makes the branch and plans only that ticket's acceptance criteria; finishing closes it (`Closes #12` in the PR, or resolves it on a local merge). "What's next" lists the unblocked tickets and follow-ups for you to pick from.
+**Working from a tracker.** Optional. `tracker init github` (or `local`, for ticket files in the repo) writes `docs/agents/issue-tracker.md`. Then "work on #12" goes to **writing-plans**, which checks blockers, claims the ticket, makes the branch and plans only that ticket's acceptance criteria; finishing resolves it on a local merge, or puts `Closes #12` in a GitHub PR body (GitHub acts on that only when the PR targets the default branch). "What's next" lists the unblocked tracker tickets, including follow-ups you deferred to tickets, for you to pick from.
 
 None of this adds a skill, and a repo with no tracker config and no follow-ups works exactly as before.
 
