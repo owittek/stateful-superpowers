@@ -36,6 +36,7 @@ When multiple skills apply, process skills come first — they set the approach,
 - **Restructure existing code, behavior preserved (refactor)** → `superpowers:improving-architecture`
 - **Bug / regression** → `superpowers:systematic-debugging`
 - **Document or comment a module (interfaces, fields, non-obvious internals)** → `superpowers:commenting-modules`
+- **"Note that for later" / "follow up on X"** → no skill: run `../finishing-a-development-branch/scripts/followup add "<X>"` (relative to this skill's directory) by its absolute path, from the working tree you're executing in, and reply "Noted as follow-up N."
 
 `brainstorming` and `improving-architecture` are **peer front-ends** — both interview the user, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
 
