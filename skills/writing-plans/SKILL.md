@@ -16,6 +16,24 @@ Write implementation plans for an engineer who has not seen this codebase or thi
 **Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
 - (User preferences for plan location override this default)
 
+## Ticket Intake
+
+Applies only when the input is a ticket ("work on #12", a ticket URL, a ref like `follow-ups/03`) **and** `docs/agents/issue-tracker.md` exists. Otherwise skip this section. Tracker ops below mean `../finishing-a-development-branch/scripts/tracker <op>`, run by its absolute path, from the working tree you're working in; if it says the backend is not supported (GitHub, others), do the same op by hand as `docs/agents/issue-tracker.md` describes. Do these in order; no step is skipped because the ticket looks small:
+
+1. **Resume check.** `git config --get-regexp '^branch\..*\.ticket$'` names the branch already holding this ref; `git worktree list` gives its worktree. If that branch has a plan whose header has `**Ticket:** <ref>`, that plan is the plan: no fetch, no claim, no re-plan. If your human partner approved it, resume executing it (the executor resumes from its ledger); otherwise go to Execution Handoff. Branch but no plan: work there and go to step 5.
+2. **Fetch.** `tracker fetch <ref>`. Then `tracker fetch` each listed blocker.
+3. **Refuse or claim.** Any blocker not done, or an assignee other than you: stop, name the blocker (ref and title) or the assignee, and write nothing. Else `tracker claim <ref>`, before any file is written. (On the local adapter the claim commits the ticket file where you stand; it is the only write allowed there.)
+4. **Branch.** Use superpowers:using-git-worktrees for branch `ticket/<slug>` (`<slug>`: the ticket number plus a short kebab-case title, e.g. `ticket/12-shout-option`); reuse a linked worktree only if its branch has no other ticket recorded. Your human partner declines a worktree → `git switch -c ticket/<slug>` in place; never write the plan or code on the default branch. Then `git config branch.<branch>.ticket <ref>` (finishing reads the ref from there).
+5. **Plan** as below, saved as `YYYY-MM-DD-<number>-<slug>.md`, header `**Ticket:** <ref>`. Scope is the ticket's acceptance criteria only. Input: for kind `ticket`, the spec it points to (path @ sha, the named sections) plus the body; for kind `followup`, the body is the whole input.
+
+| Thought | Reality |
+|---|---|
+| "It's small, just TDD it" | The plan file exists before any code. The plan is short; write it. |
+| "I'll re-plan to be safe" | A plan with the Ticket header exists: use it. |
+| "It's mine already, skip the checks" | Fetch shows the assignee and blockers; your memory doesn't. |
+| "Claim once the plan looks good" | Claim first; a plan for an unclaimed ticket races someone else. |
+| "No worktree, so main is fine" | Never on the default branch: create `ticket/<slug>` in place. |
+
 ## Scope Check
 
 If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
@@ -60,6 +78,8 @@ independently testable deliverable.
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
+
+**Ticket:** [only for a ticket plan (see Ticket Intake): the ref]
 
 **Architecture:** [2-3 sentences about approach]
 
