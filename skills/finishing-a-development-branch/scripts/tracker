@@ -44,6 +44,7 @@ usage: tracker [-C DIR] <op> [args]
   claim           REF                                       -> ok
   resolve         REF WHAT                                  -> ok
   comment         REF TEXT_FILE                             -> ok
+  init            local|github                              -> ok
 EOF
   exit 2
 }
@@ -206,6 +207,54 @@ append_comment() {
   ensure_trailing_newline "$file"
 }
 
+# backend_of CONFIG -> the backend named by the config's H1, "" when none
+backend_of() {
+  local h1
+  h1=$(grep -m 1 '^# ' "$1" | sed 's/^# //; s/[[:space:]]*$//' || true)
+  printf '%s\n' "${h1#"Issue tracker: "}"
+}
+
+# init_config BACKEND -> write the config for BACKEND, or leave an existing
+# one for the same backend untouched; never overwrite another backend's
+init_config() {
+  local existing
+  [ "$1" = local ] || die "init github is not implemented yet (#13)"
+  if [ -f "$CONFIG" ]; then
+    existing=$(backend_of "$CONFIG")
+    case "$existing" in
+      "Local Markdown") echo ok; return 0 ;;
+      "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; not overwriting" ;;
+      *) die "docs/agents/issue-tracker.md already names \"$existing\"; not overwriting" ;;
+    esac
+  fi
+  mkdir -p "$(dirname "$CONFIG")"
+  cat >"$CONFIG" <<'CONFIG_EOF' || die "cannot write $CONFIG"
+# Issue tracker: Local Markdown
+
+Issues for this repo live as markdown files under `docs/superpowers/tickets/`,
+committed with the code: one directory per parent, `00-<kind>.md` for the
+parent and `NN-<slug>.md` for each ticket. A ticket's header lines (Kind,
+Parent, Blocked by, Status, Assignee) are its state; the body below them is
+never rewritten.
+
+## Ticket operations
+
+Skills run these through
+`skills/finishing-a-development-branch/scripts/tracker [-C DIR] <op>`; edit
+the files by hand only when the script is unavailable.
+
+- **register-parent** KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]: new parent directory.
+- **publish-ticket** PARENT KIND TITLE BODY_FILE [BLOCKER...]: new `Status: ready` ticket; PARENT `-` with kind `followup` files it under the standing Follow-ups parent (`follow-ups/00`).
+- **frontier** KIND [PARENT]: ready tickets whose blockers are all done.
+- **fetch** REF: header fields and body.
+- **claim** REF: `Status: claimed`, Assignee from `git config user.name`, committed.
+- **resolve** REF WHAT: `Status: done`, "Resolved by WHAT" comment, committed.
+- **comment** REF TEXT_FILE: append under `## Comments`.
+- **find** KIND TEXT: open tickets of KIND whose title or body contains TEXT.
+CONFIG_EOF
+  echo ok
+}
+
 # --- Local Markdown adapter -------------------------------------------------
 
 local_register_parent() {
@@ -359,16 +408,20 @@ case "$op" in
   frontier) [ $# -ge 1 ] && [ $# -le 2 ] || usage ;;
   fetch | claim) [ $# -eq 1 ] || usage ;;
   resolve | comment) [ $# -eq 2 ] || usage ;;
+  init) [ $# -eq 1 ] && { [ "$1" = local ] || [ "$1" = github ]; } || usage ;;
   *) usage ;;
 esac
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git work tree"
 CONFIG="$ROOT/docs/agents/issue-tracker.md"
 TICKETS="$ROOT/docs/superpowers/tickets"
+if [ "$op" = init ]; then
+  init_config "$1"
+  exit 0
+fi
 [ -f "$CONFIG" ] || die "no tracker configured: run tracker init"
 
-h1=$(grep -m 1 '^# ' "$CONFIG" | sed 's/^# //; s/[[:space:]]*$//' || true)
-backend=${h1#"Issue tracker: "}
+backend=$(backend_of "$CONFIG")
 case "$backend" in
   "Local Markdown") adapter=local ;;
   GitHub) die "GitHub backend is not implemented yet; run gh by hand per docs/agents/issue-tracker.md" ;;

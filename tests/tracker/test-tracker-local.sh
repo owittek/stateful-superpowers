@@ -166,5 +166,6 @@ assert_eq "-C claim commits in the target repo" "chore(tracker): claim dash-c/01
 assert_eq "-C comment" ok "$(tracker_c "$repo" comment "$ct" "$note")"
 assert_eq "-C resolve" ok "$(tracker_c "$repo" resolve "$ct" "merge def5678")"
 assert_line "-C resolve lands in the target repo" "state: done" "$(tracker "$repo" fetch "$ct")"
+assert_eq "-C init local on a configured repo is a no-op" ok "$(tracker_c "$repo" init local)"
 
 finish
