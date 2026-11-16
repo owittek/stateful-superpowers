@@ -154,6 +154,38 @@ assert_line "fetch shows done" "state: done" "$(tracker "$repo" fetch "$t1")"
 assert_eq "frontier lists the other two after the resolve" "$(printf 'tracker-bridge-design/02\tGitHub adapter\ntracker-bridge-design/03\tSetup wizard')" "$(tracker "$repo" frontier ticket "$parent")"
 assert_fails "claim on a done ticket is refused" "tracker-bridge-design/01 is done" tracker "$repo" claim "$t1"
 
+echo "tracker: standing Follow-ups parent"
+fbody="$TEST_ROOT/followup-body.md"
+printf '## What\n\nThe frontier ignores Stale Blockers.\n\n## Acceptance criteria\n\n- [ ] Fixed\n' >"$fbody"
+fu1=$(tracker "$repo" publish-ticket - followup "Retry flaky claim" "$fbody")
+assert_eq "the first follow-up lands under follow-ups" "follow-ups/01" "$fu1"
+fpfile="$tickets/follow-ups/00-followups.md"
+assert_file_exists "the Follow-ups parent is created on first use" "$fpfile"
+assert_file_has_line "Follow-ups parent title" "$fpfile" "# 00: Follow-ups"
+assert_file_has_line "Follow-ups parent kind" "$fpfile" "Kind: followups"
+assert_file_has_line "Follow-ups parent status" "$fpfile" "Status: open"
+if grep -q '^Spec:' "$fpfile"; then fail "Follow-ups parent points at no spec"; else pass "Follow-ups parent points at no spec"; fi
+fu1file="$tickets/follow-ups/01-retry-flaky-claim.md"
+assert_file_has_line "follow-up parent line" "$fu1file" "Parent: follow-ups/00"
+assert_file_has_line "follow-up kind" "$fu1file" "Kind: followup"
+fu2=$(tracker "$repo" publish-ticket - followup "Docs typo in fetch" "$body" "$fu1")
+assert_eq "the second follow-up reuses the parent" "follow-ups/02" "$fu2"
+assert_eq "still one Follow-ups parent" 1 "$(find "$tickets/follow-ups" -name '00-*.md' | wc -l | tr -d ' ')"
+assert_file_has_line "Follow-ups parent lists the first" "$fpfile" "- 01-retry-flaky-claim.md"
+assert_file_has_line "Follow-ups parent lists the second" "$fpfile" "- 02-docs-typo-in-fetch.md"
+out=$(tracker "$repo" fetch follow-ups/00)
+assert_line "fetch on the Follow-ups parent prints its kind" "kind: followups" "$out"
+assert_line "fetch on the Follow-ups parent prints open" "state: open" "$out"
+assert_fails "parent - with another kind is refused" "parent - is only for kind followup" tracker "$repo" publish-ticket - ticket "Nope" "$body"
+fresh=$(make_repo fresh-followups)
+assert_fails "a refused follow-up publish is refused" "no such file" tracker "$fresh" publish-ticket - followup "Nope" "$TEST_ROOT/missing.md"
+if [ -e "$fresh/docs/superpowers/tickets/follow-ups" ]; then fail "a refused follow-up publish creates no parent"; else pass "a refused follow-up publish creates no parent"; fi
+assert_fails "a missing blocker creates no parent either" "no such ref: x/01" tracker "$fresh" publish-ticket - followup "Nope" "$body" x/01
+if [ -e "$fresh/docs/superpowers/tickets/follow-ups" ]; then fail "a bad blocker creates no parent"; else pass "a bad blocker creates no parent"; fi
+clash=$(make_repo clash)
+tracker "$clash" register-parent spec "Follow ups" docs/z.md 3333333 >/dev/null
+assert_fails "a follow-ups directory holding another parent is refused" "follow-ups/00 is not the Follow-ups parent" tracker "$clash" publish-ticket - followup "Nope" "$body"
+
 echo "tracker: -C DIR"
 cparent=$(tracker_c "$repo" register-parent spec "Dash C" docs/c.md 2222222)
 assert_eq "-C register-parent" "dash-c/00" "$cparent"

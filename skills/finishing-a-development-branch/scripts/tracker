@@ -279,15 +279,39 @@ local_register_parent() {
   printf '%s/00\n' "$slug"
 }
 
+# followups_parent -> path of the standing Follow-ups parent, registering it
+# on first use. It has kind followups, slug follow-ups, and no spec pointer.
+followups_parent() {
+  local dir="$TICKETS/follow-ups" file
+  file="$dir/00-followups.md"
+  if [ -f "$file" ]; then
+    printf '%s\n' "$file"
+    return 0
+  fi
+  [ ! -e "$dir" ] || die "follow-ups/00 is not the Follow-ups parent"
+  mkdir -p "$dir"
+  {
+    printf '# 00: Follow-ups\n\n'
+    printf 'Kind: followups\nStatus: open\n\n'
+    printf 'Standing parent for deferred follow-up tickets; never closed, points at no spec.\n\n'
+    printf '## Tickets\n'
+  } >"$file" || die "cannot write $file"
+  printf '%s\n' "$file"
+}
+
 local_publish_ticket() {
   local parent=$1 kind=$2 title=$3 body_file=$4
   shift 4
-  local parent_file parent_ref dir slug nn name file blocked="" ref blocker_file
-  parent_file=$(resolve_ref "$parent")
-  case "$(basename "$parent_file")" in
-    00-*) ;;
-    *) die "$parent is not a parent" ;;
-  esac
+  local parent_file="" parent_ref dir slug nn name file blocked="" ref blocker_file
+  if [ "$parent" = - ]; then
+    [ "$kind" = followup ] || die "parent - is only for kind followup"
+  else
+    parent_file=$(resolve_ref "$parent")
+    case "$(basename "$parent_file")" in
+      00-*) ;;
+      *) die "$parent is not a parent" ;;
+    esac
+  fi
   [ -f "$body_file" ] || die "no such file: $body_file"
   for ref in "$@"; do
     blocker_file=$(resolve_ref "$ref")
@@ -295,6 +319,8 @@ local_publish_ticket() {
     blocked="${blocked:+$blocked, }$ref"
   done
   [ -n "$blocked" ] || blocked="None (can start immediately)"
+  # The standing parent is created only once the publish is known to succeed
+  [ -n "$parent_file" ] || parent_file=$(followups_parent)
   parent_ref=$(canonical_ref "$parent_file")
   dir=$(dirname "$parent_file")
   slug=$(slugify "$title")
