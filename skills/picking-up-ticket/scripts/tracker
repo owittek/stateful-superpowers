@@ -294,7 +294,7 @@ local_frontier() {
     while IFS= read -r b; do
       [ -n "$b" ] || continue
       bf=$(resolve_ref "$b" 2>/dev/null) || { ok=0; break; }
-      [ "$(header_field "$bf" Status)" = done ] || { ok=0; break; }
+      [ "$(header_field "$bf" Status)" = "done" ] || { ok=0; break; }
     done <<<"$(blockers_of "$f")"
     [ "$ok" = 1 ] || continue
     printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
@@ -337,7 +337,7 @@ local_resolve() {
   local file ref
   file=$(resolve_ref "$1")
   ref=$(canonical_ref "$file")
-  set_header "$file" Status done
+  set_header "$file" Status "done"
   printf 'Resolved by %s\n' "$2" | append_comment "$file"
   commit_file "$file" "chore(tracker): resolve $ref"
   echo ok
