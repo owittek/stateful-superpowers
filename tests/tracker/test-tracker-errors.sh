@@ -4,7 +4,7 @@ set -euo pipefail
 # shellcheck source=tests/tracker/helpers.sh
 . "$(cd "$(dirname "$0")" && pwd)/helpers.sh"
 
-# assert_every_op_fails REPO NEEDLE SUFFIX -> all seven ops exit non-zero with
+# assert_every_op_fails REPO NEEDLE SUFFIX -> every op but init exit non-zero with
 # a one-line reason containing NEEDLE
 assert_every_op_fails() {
   local repo=$1 needle=$2 suffix=$3
@@ -15,19 +15,26 @@ assert_every_op_fails() {
   assert_fails "claim $suffix" "$needle" tracker "$repo" claim x/01
   assert_fails "resolve $suffix" "$needle" tracker "$repo" resolve x/01 abc1234
   assert_fails "comment $suffix" "$needle" tracker "$repo" comment x/01 /dev/null
+  assert_fails "find $suffix" "$needle" tracker "$repo" find followup text
 }
 
 echo "tracker: usage"
 status=0
 out=$("$TRACKER" 2>&1) || status=$?
 assert_eq "no op exits 2" 2 "$status"
-assert_line "no op prints usage" "usage: tracker <op> [args]" "$out"
+assert_line "no op prints usage" "usage: tracker [-C DIR] <op> [args]" "$out"
 status=0
 "$TRACKER" frobnicate >/dev/null 2>&1 || status=$?
 assert_eq "unknown op exits 2" 2 "$status"
 status=0
 "$TRACKER" fetch >/dev/null 2>&1 || status=$?
 assert_eq "wrong arity exits 2" 2 "$status"
+status=0
+"$TRACKER" -C "$TEST_ROOT/missing" fetch x/01 >/dev/null 2>&1 || status=$?
+assert_eq "-C with a missing directory exits 2" 2 "$status"
+status=0
+"$TRACKER" -C >/dev/null 2>&1 || status=$?
+assert_eq "-C without a directory exits 2" 2 "$status"
 
 echo "tracker: outside a git work tree"
 outside="$TEST_ROOT/outside"
@@ -38,7 +45,7 @@ echo "tracker: missing config"
 bare="$TEST_ROOT/bare"
 mkdir -p "$bare"
 g -C "$bare" -c init.defaultBranch=main init -q
-assert_every_op_fails "$bare" "run setting-up-tracker" "without config points at setting-up-tracker"
+assert_every_op_fails "$bare" "no tracker configured: run tracker init" "without config points at tracker init"
 
 echo "tracker: unsupported backends"
 jira=$(make_repo jira "Issue tracker: Jira")
@@ -59,6 +66,8 @@ assert_fails "claim of an unknown ref" "no such ref: x/01" tracker "$local" clai
 assert_fails "frontier scoped to an unknown parent" "no such ref: x/00" tracker "$local" frontier ticket x/00
 out=$(tracker "$local" frontier ticket)
 assert_eq "frontier with no tickets directory prints nothing" "" "$out"
+out=$(tracker "$local" find followup text)
+assert_eq "find with no tickets directory prints nothing" "" "$out"
 assert_fails "comment on an unknown ref" "no such ref: x/01" tracker "$local" comment x/01 /dev/null
 assert_fails "resolve of an unknown ref" "no such ref: x/01" tracker "$local" resolve x/01 abc1234
 

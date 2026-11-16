@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Tracker port: the seven operations behind which the issue tracker's backend
-# is hidden (register-parent, publish-ticket, frontier, fetch, claim, resolve,
-# comment). Skills call this instead of re-deriving tracker incantations, so
-# one caller cannot drift from another.
+# Tracker port: the operations behind which the issue tracker's backend is
+# hidden (register-parent, publish-ticket, frontier, fetch, claim, resolve,
+# comment, find, init). Skills call this instead of re-deriving tracker
+# incantations, so one caller cannot drift from another.
 #
 # The backend is the H1 of docs/agents/issue-tracker.md:
 #   "# Issue tracker: Local Markdown"  -> files under docs/superpowers/tickets/
-#   "# Issue tracker: GitHub"          -> gh (not implemented yet)
+#   "# Issue tracker: GitHub"          -> gh (not implemented yet, #13)
 # Any other H1 means "other": this script refuses and the skills follow the
-# config's prose by hand.
+# config's prose by hand. No config: every op but init fails with "no tracker
+# configured: run tracker init". `init local` writes the Local Markdown config
+# (uncommitted) and is a no-op when one exists; it never overwrites another
+# backend's config. `init github` is not implemented yet (#13).
 #
 # Local Markdown layout. One directory per parent,
 # docs/superpowers/tickets/<parent-slug>/, holding 00-<kind>.md (the parent)
@@ -21,29 +24,45 @@
 # open on the parent. The body is what the publisher wrote and is never
 # rewritten; comments append under "## Comments".
 #
+# The standing Follow-ups parent is follow-ups/00 (file
+# follow-ups/00-followups.md, kind followups, title "Follow-ups", no spec
+# pointer). `publish-ticket - followup ...` files a deferred follow-up under it,
+# registering it on first use; PARENT "-" is refused for any other kind. A
+# follow-up's body is its content (ADR 0005).
+#
+# `find KIND TEXT` lists tickets of KIND that are not done and whose title or
+# body contains TEXT (case-insensitive, literal); no match prints nothing and
+# exits 0. Callers use it to avoid publishing duplicates.
+#
 # Every op prints a machine-readable result on stdout and exits non-zero with
 # a one-line reason on stderr (2 for usage errors, 1 otherwise). claim and
 # resolve commit the one file they change so other sessions see the
 # transition; a concurrent claim surfaces as a conflict when the commits meet
 # (merge or push). Caller contract: claim needs git config user.name and
 # records it as the Assignee; resolve sets Status: done and appends
-# "Resolved by <what>" under Comments; register-parent, publish-ticket and
-# comment leave their changes in the work tree for the caller to commit;
-# BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
+# "Resolved by <what>" under Comments; register-parent, publish-ticket,
+# comment and init leave their changes in the work tree for the caller to
+# commit; BODY_FILE, SUMMARY_FILE and TEXT_FILE must be regular files.
 #
-# Usage: tracker <op> [args]   (run with no arguments for the op list)
+# -C DIR runs as if started in DIR, the way git -C does, so a caller working
+# on another checkout or worktree needs no `cd DIR ;` prefix. Relative file
+# arguments then resolve against DIR.
+#
+# Usage: tracker [-C DIR] <op> [args]   (run with no arguments for the op list)
 set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-usage: tracker <op> [args]
+usage: tracker [-C DIR] <op> [args]
   register-parent KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]  -> ref
-  publish-ticket  PARENT KIND TITLE BODY_FILE [BLOCKER...]  -> ref
+  publish-ticket  PARENT|- KIND TITLE BODY_FILE [BLOCKER...] -> ref
   frontier        KIND [PARENT]                             -> ref<TAB>title per line
   fetch           REF                                       -> fields, blank line, body
   claim           REF                                       -> ok
   resolve         REF WHAT                                  -> ok
   comment         REF TEXT_FILE                             -> ok
+  find            KIND TEXT                                 -> ref<TAB>title per line
+  init            local|github                              -> ok
 EOF
   exit 2
 }
@@ -206,6 +225,54 @@ append_comment() {
   ensure_trailing_newline "$file"
 }
 
+# backend_of CONFIG -> the backend named by the config's H1, "" when none
+backend_of() {
+  local h1
+  h1=$(grep -m 1 '^# ' "$1" | sed 's/^# //; s/[[:space:]]*$//' || true)
+  printf '%s\n' "${h1#"Issue tracker: "}"
+}
+
+# init_config BACKEND -> write the config for BACKEND, or leave an existing
+# one for the same backend untouched; never overwrite another backend's
+init_config() {
+  local existing
+  [ "$1" = local ] || die "init github is not implemented yet (#13)"
+  if [ -f "$CONFIG" ]; then
+    existing=$(backend_of "$CONFIG")
+    case "$existing" in
+      "Local Markdown") echo ok; return 0 ;;
+      "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; not overwriting" ;;
+      *) die "docs/agents/issue-tracker.md already names \"$existing\"; not overwriting" ;;
+    esac
+  fi
+  mkdir -p "$(dirname "$CONFIG")"
+  cat >"$CONFIG" <<'CONFIG_EOF' || die "cannot write $CONFIG"
+# Issue tracker: Local Markdown
+
+Issues for this repo live as markdown files under `docs/superpowers/tickets/`,
+committed with the code: one directory per parent, `00-<kind>.md` for the
+parent and `NN-<slug>.md` for each ticket. A ticket's header lines (Kind,
+Parent, Blocked by, Status, Assignee) are its state; the body below them is
+never rewritten.
+
+## Ticket operations
+
+Skills run these through
+`skills/finishing-a-development-branch/scripts/tracker [-C DIR] <op>`; edit
+the files by hand only when the script is unavailable.
+
+- **register-parent** KIND TITLE SPEC_PATH SHA [SUMMARY_FILE]: new parent directory.
+- **publish-ticket** PARENT KIND TITLE BODY_FILE [BLOCKER...]: new `Status: ready` ticket; PARENT `-` with kind `followup` files it under the standing Follow-ups parent (`follow-ups/00`).
+- **frontier** KIND [PARENT]: ready tickets whose blockers are all done.
+- **fetch** REF: header fields and body.
+- **claim** REF: `Status: claimed`, Assignee from `git config user.name`, committed.
+- **resolve** REF WHAT: `Status: done`, "Resolved by WHAT" comment, committed.
+- **comment** REF TEXT_FILE: append under `## Comments`.
+- **find** KIND TEXT: open tickets of KIND whose title or body contains TEXT.
+CONFIG_EOF
+  echo ok
+}
+
 # --- Local Markdown adapter -------------------------------------------------
 
 local_register_parent() {
@@ -230,15 +297,39 @@ local_register_parent() {
   printf '%s/00\n' "$slug"
 }
 
+# followups_parent -> path of the standing Follow-ups parent, registering it
+# on first use. It has kind followups, slug follow-ups, and no spec pointer.
+followups_parent() {
+  local dir="$TICKETS/follow-ups" file
+  file="$dir/00-followups.md"
+  if [ -f "$file" ]; then
+    printf '%s\n' "$file"
+    return 0
+  fi
+  [ ! -e "$dir" ] || die "follow-ups/00 is not the Follow-ups parent"
+  mkdir -p "$dir"
+  {
+    printf '# 00: Follow-ups\n\n'
+    printf 'Kind: followups\nStatus: open\n\n'
+    printf 'Standing parent for deferred follow-up tickets; never closed, points at no spec.\n\n'
+    printf '## Tickets\n'
+  } >"$file" || die "cannot write $file"
+  printf '%s\n' "$file"
+}
+
 local_publish_ticket() {
   local parent=$1 kind=$2 title=$3 body_file=$4
   shift 4
-  local parent_file parent_ref dir slug nn name file blocked="" ref blocker_file
-  parent_file=$(resolve_ref "$parent")
-  case "$(basename "$parent_file")" in
-    00-*) ;;
-    *) die "$parent is not a parent" ;;
-  esac
+  local parent_file="" parent_ref dir slug nn name file blocked="" ref blocker_file
+  if [ "$parent" = - ]; then
+    [ "$kind" = followup ] || die "parent - is only for kind followup"
+  else
+    parent_file=$(resolve_ref "$parent")
+    case "$(basename "$parent_file")" in
+      00-*) ;;
+      *) die "$parent is not a parent" ;;
+    esac
+  fi
   [ -f "$body_file" ] || die "no such file: $body_file"
   for ref in "$@"; do
     blocker_file=$(resolve_ref "$ref")
@@ -246,6 +337,8 @@ local_publish_ticket() {
     blocked="${blocked:+$blocked, }$ref"
   done
   [ -n "$blocked" ] || blocked="None (can start immediately)"
+  # The standing parent is created only once the publish is known to succeed
+  [ -n "$parent_file" ] || parent_file=$(followups_parent)
   parent_ref=$(canonical_ref "$parent_file")
   dir=$(dirname "$parent_file")
   slug=$(slugify "$title")
@@ -301,6 +394,24 @@ local_frontier() {
   done
 }
 
+# Open tickets of KIND whose title or body contains TEXT, compared
+# case-insensitively and literally (no pattern characters). Parents count when
+# their kind matches; done tickets never do.
+local_find() {
+  local kind=$1 text=$2 f content
+  for f in "$TICKETS"/*/[0-9][0-9]-*.md; do
+    [ -f "$f" ] || continue
+    [ "$(header_field "$f" Kind)" = "$kind" ] || continue
+    [ "$(header_field "$f" Status)" != "done" ] || continue
+    # No pipe into grep -q: it stops at the first match, and a writer it cuts
+    # off would fail the pipeline under pipefail
+    content="$(title_of "$f")
+$(body_of "$f")"
+    grep -Fqi -e "$text" <<<"$content" || continue
+    printf '%s\t%s\n' "$(canonical_ref "$f")" "$(title_of "$f")"
+  done
+}
+
 local_claim() {
   local file ref me state assignee
   file=$(resolve_ref "$1")
@@ -345,6 +456,11 @@ local_resolve() {
 
 # --- dispatch ---------------------------------------------------------------
 
+if [ "${1:-}" = "-C" ]; then
+  [ -d "${2:-}" ] || { echo "bad -C directory: ${2:-}" >&2; exit 2; }
+  cd "$2"
+  shift 2
+fi
 [ $# -ge 1 ] || usage
 op=$1
 shift
@@ -354,20 +470,25 @@ case "$op" in
   frontier) [ $# -ge 1 ] && [ $# -le 2 ] || usage ;;
   fetch | claim) [ $# -eq 1 ] || usage ;;
   resolve | comment) [ $# -eq 2 ] || usage ;;
+  find) [ $# -eq 2 ] && [ -n "$2" ] || usage ;;
+  init) [ "$*" = local ] || [ "$*" = github ] || usage ;;
   *) usage ;;
 esac
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git work tree"
 CONFIG="$ROOT/docs/agents/issue-tracker.md"
 TICKETS="$ROOT/docs/superpowers/tickets"
-[ -f "$CONFIG" ] || die "no docs/agents/issue-tracker.md: run setting-up-tracker first"
+if [ "$op" = init ]; then
+  init_config "$1"
+  exit 0
+fi
+[ -f "$CONFIG" ] || die "no tracker configured: run tracker init"
 
-h1=$(grep -m 1 '^# ' "$CONFIG" | sed 's/^# //; s/[[:space:]]*$//' || true)
-backend=${h1#"Issue tracker: "}
+backend=$(backend_of "$CONFIG")
 case "$backend" in
   "Local Markdown") adapter=local ;;
   GitHub) die "GitHub backend is not implemented yet; run gh by hand per docs/agents/issue-tracker.md" ;;
-  "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker; run setting-up-tracker" ;;
+  "") die "docs/agents/issue-tracker.md has no H1 naming the issue tracker" ;;
   *) die "issue tracker \"$backend\" is not supported by this script; follow docs/agents/issue-tracker.md by hand" ;;
 esac
 

@@ -6,7 +6,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TRACKER="$REPO_ROOT/skills/picking-up-ticket/scripts/tracker"
+TRACKER="$REPO_ROOT/skills/finishing-a-development-branch/scripts/tracker"
 
 FAILURES=0
 TEST_ROOT="$(mktemp -d)"
@@ -51,6 +51,14 @@ tracker() {
   local repo=$1
   shift
   (cd "$repo" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" GIT_CONFIG_NOSYSTEM=1 "$TRACKER" "$@")
+}
+
+# tracker_c REPO OP [ARGS...] -> run the script under test from outside REPO,
+# pointed at it with -C
+tracker_c() {
+  local repo=$1
+  shift
+  (cd "$TEST_ROOT" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" GIT_CONFIG_NOSYSTEM=1 "$TRACKER" -C "$repo" "$@")
 }
 
 # assert_eq DESCRIPTION EXPECTED ACTUAL
