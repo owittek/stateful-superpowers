@@ -43,6 +43,8 @@ Before I run the tests: <K> open follow-ups on <branch>.
 Reply "ok" to take these, or change any (e.g. "2 drop").
 ```
 
+Items ending `(sweep)`: read section 3a before writing this message.
+
 Wait for the reply. One reply settles every item; don't re-ask per item.
 
 ## 3. Carry out each disposition
@@ -85,6 +87,39 @@ Branch <name> @ <short sha>, <source> (review / sdd:<plan> / debugging / session
 **Local Markdown adapter:** publish and comment leave the ticket files in
 the work tree. Commit them on this branch together with the sort's fixes
 (one commit), so they reach the base on merge. Then continue to Step 1.
+
+## 3a. Sweep items
+
+Items ending `(sweep)` came from the pattern sweep. In the message, give each
+the finding's Canonical and Recommend lines (from the sweep's output, or the
+item text alone after a compaction). Recommend **ticket** rather than now
+when the finding has more than 10 sites outside the diff or spans more than
+one area of the codebase.
+
+- **now:** a shared primitive, not a one-site fix. Re-find the sites (the
+  finding's lists, or grep for the pattern), introduce or reuse the
+  primitive, add enforcement with what the repo already has (lint config,
+  architecture test, component test; none → say so, no new tooling), migrate
+  every site in and outside the diff, TDD as usual. Record the canonical
+  choice in the primitive's doc comment and the enforcement's message.
+- **ticket:** the body above, with What naming the pattern and its kind,
+  plus two sections before `## Acceptance criteria`, still without paths:
+
+  ```markdown
+  ## Canonical choice
+
+  The choice, and its evidence (N existing uses / the named practice).
+
+  ## Enforcement
+
+  What fails on a new violation, using the repo's existing tooling.
+  ```
+
+  These acceptance criteria replace the template's: the primitive exists, the enforcement fails on a new
+  violation, no site is left — checked at pickup by running the sweep in
+  pattern mode.
+- **drop:** as any item; the next sweep on this branch gets it in PRIOR and
+  doesn't raise it again.
 
 ## 4. No tracker config and an item marked ticket
 
