@@ -1,0 +1,27 @@
+{
+  "name": "stateful-superpowers",
+  "displayName": "Stateful Superpowers",
+  "version": "0.8.0",
+  "description": "Superpowers that remember: brainstorm → plan → TDD → review, keeping your project's language and key decisions across sessions",
+  "logo": "assets/antigravity-logo.png",
+  "suggestedPrompts": [
+    "I've got an idea for something I'd like to build",
+    "Let's figure out why this broke"
+  ],
+  "category": "Developer Tools",
+  "keywords": [
+    "skills",
+    "tdd",
+    "debugging",
+    "collaboration",
+    "best-practices",
+    "workflows"
+  ],
+  "author": {
+    "name": "Olivier Wittek",
+    "email": "me@wittek.xyz"
+  },
+  "homepage": "https://github.com/owittek/stateful-superpowers",
+  "repository": "https://github.com/owittek/stateful-superpowers",
+  "license": "MIT"
+}
