@@ -16,6 +16,12 @@ this well: places where you'd have to guess and a wrong guess would
 matter. For each, give the question and why the answer changes the plan.
 Rank them by importance.
 
+If the project has CONTEXT.md (the domain glossary) or docs/adr/
+(recorded decisions), read them too. Also report any term the document
+uses that the glossary defines differently or doesn't define, any place
+it contradicts an ADR, and, if it has an Architecture section, any part
+of the design no module in that section owns.
+
 Skip anything the document explicitly leaves to the builder, and anything
 you could reasonably decide yourself. Skip nitpicks about wording.
 

@@ -1,7 +1,9 @@
 ---
 name: grilling
-description: Relentless interview engine that walks the decision tree round by round (with a recommended answer per question), challenges the plan against the project's domain language and recorded decisions, and captures resolved terms into CONTEXT.md and hard-to-reverse decisions into docs/adr/ inline. Invoked by brainstorming and improving-architecture for their interview phase; can also be used standalone to stress-test a plan.
+description: Relentless interview engine that walks the decision tree round by round (with a recommended answer per question), challenges the plan against the project's domain language and recorded decisions, and captures resolved terms into CONTEXT.md and hard-to-reverse decisions into docs/adr/ inline. Invoked by improving-architecture for its interview phase, and by brainstorming in capture mode (domain-language and decision capture only, no rounds); can also be used standalone to stress-test a plan.
 ---
+
+**Capture mode.** When a caller invokes this skill in capture mode (brainstorming does), the caller owns the interview: skip `<what-to-do>` and run no rounds of your own. Apply the State discipline and the During-the-session rules below throughout the caller's conversation: challenge terms against `CONTEXT.md`, sharpen fuzzy language, cross-check against the code, write resolved terms inline, offer an ADR when the three-part gate passes. Raise any challenge as part of the caller's next message, not as a separate round.
 
 <what-to-do>
 

@@ -4,8 +4,7 @@
 seams. Like the visual companion, it is a tool, not a mode — offering it does
 not commit the rest of the design to architecture-speak.
 
-**When to offer.** After the approach is chosen (checklist item 4), when either
-is true:
+**When to offer.** After they've picked an approach, when either is true:
 
 - the design introduces **2+ new modules**, or
 - it lands in an **existing codebase with seams it has to fit**.
@@ -32,6 +31,6 @@ If they decline, continue and don't offer again unless they raise it.
 times as much and discards two thirds of it.
 
 **What comes back.** A module/interface/seam table for the chosen approach. It
-becomes the Architecture section of the design you play back and of the spec
-you write. If the visual companion is already running, its structure diagram
+becomes part of what you play back and the Architecture section of the
+written design. If the visual companion is already running, its structure diagram
 belongs in the browser tab; otherwise Mermaid in the spec.

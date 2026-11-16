@@ -37,9 +37,9 @@ When multiple skills apply, process skills come first — they set the approach,
 - **Bug / regression** → `superpowers:systematic-debugging`
 - **Document or comment a module (interfaces, fields, non-obvious internals)** → `superpowers:commenting-modules`
 
-`brainstorming` and `improving-architecture` are **peer front-ends** — both grill, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
+`brainstorming` and `improving-architecture` are **peer front-ends** — both interview the user, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
 
-Both front-ends share the same engines: `grilling` (the interview) and `designing-modules` (module and seam design). Engines are invoked by front-ends, not routed to — don't send a task to one directly unless the user names it.
+Both front-ends share the same engines: `grilling` (the interview and domain capture; brainstorming uses capture mode only) and `designing-modules` (module and seam design). Engines are invoked by front-ends, not routed to — don't send a task to one directly unless the user names it.
 
 ## Red Flags
 

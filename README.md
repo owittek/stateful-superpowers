@@ -327,8 +327,8 @@ Superpowers is built by [Jesse Vincent](https://blog.fsck.com) and the rest of t
 - **diagnosing-superpowers** - Work out what went wrong in a session, with evidence; export a scrubbed bundle or file an issue
 
 **Collaboration** 
-- **brainstorming** - Draws out intent (why first), grills the design, gets it approved before anything is built
-- **grilling** - Relentless round-by-round design interview, capturing terms into CONTEXT.md and decisions into docs/adr/
+- **brainstorming** - Draws out intent (why first), captures domain terms and decisions as they settle, gets a design approved before anything is built
+- **grilling** - Relentless round-by-round design interview, capturing terms into CONTEXT.md and decisions into docs/adr/ (brainstorming uses its capture mode only)
 - **prototype** - Build a throwaway probe to answer one design question discussion can't settle
 - **improving-architecture** - Find deepening and refactoring opportunities, informed by CONTEXT.md and docs/adr/
 - **designing-modules** - Design module structure, interfaces and seams; the shared engine behind brainstorming's architecture pass and improving-architecture's deepening
