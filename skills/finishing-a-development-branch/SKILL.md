@@ -7,9 +7,21 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 ## Overview
 
-**Core principle:** Verify tests → Detect environment → Present options → Execute choice → Clean up.
+**Core principle:** Sort follow-ups → Verify tests → Detect environment → Present options → Execute choice → Clean up.
 
 **Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
+
+## Step 0: Sort Follow-ups
+
+Run this skill's `scripts/followup list --open` by its absolute path, from
+the working tree you're executing in. It prints this branch's open
+follow-ups.
+
+**If it prints nothing:** say nothing about follow-ups; continue to Step 1.
+
+**Otherwise:** read `references/follow-up-sort.md` and sort them with your
+human partner now, before Step 1 — doing an item changes the code the
+tests must cover.
 
 ## Step 1: Verify Tests
 
@@ -33,7 +45,12 @@ GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
 # Capture now, while still inside the workspace — Step 5 changes directory
 # before cleanup (Step 6) needs this value
 WORKTREE_PATH=$(git rev-parse --show-toplevel)
+# The ticket this branch works on, if any (written by writing-plans)
+TICKET=$(git config "branch.$(git branch --show-current).ticket" || true)
 ```
+
+`TRACKER` below is this skill's `scripts/tracker`, run by its absolute
+path. Empty `TICKET`: skip every ticket line in Step 5.
 
 This determines which menu to show and how cleanup works:
 
@@ -103,8 +120,10 @@ If tests fail on the merged result: stop, leave the worktree and branch in
 place, and investigate — nothing has been pushed, so the merge is local
 and recoverable.
 
-Once the merged result is green: clean up the worktree (Step 6), then
-delete the branch:
+Once the merged result is green, resolve the ticket from the base branch:
+`TRACKER resolve "$TICKET" "$(git rev-parse --short HEAD)"` (that is the
+merge commit, or the tip a fast-forward landed on). Then clean up the
+worktree (Step 6) and delete the branch:
 
 ```bash
 git branch -d <feature-branch>
@@ -123,11 +142,20 @@ tooling — its CLI if one is available, or the creation URL most forges
 print when you push — following the repo's PR template and conventions if
 present, and report the URL to your human partner.
 
+With a `TICKET`:
+- **GitHub ref (`#N`):** the body includes `Closes <ref>`. GitHub closes it
+  only when the PR merges into the default branch; for any other base, also
+  tell your human partner the ticket is resolved by hand after the merge.
+- **Local ref:** no close keyword works. Write the PR URL to a temp file,
+  `TRACKER comment "$TICKET" <file>`, and say the ticket stays claimed
+  until it is resolved after the merge.
+
 Keep the worktree — your human partner iterates on PR feedback there.
 
 ### Option 3: Keep As-Is
 
-Report: "Keeping branch <name>. Worktree preserved at <path>."
+Report: "Keeping branch <name>. Worktree preserved at <path>." With a
+`TICKET`, add: "Ticket <ref> stays claimed."
 
 ### If your human partner asks to discard the work
 
@@ -142,6 +170,9 @@ This will permanently delete:
 
 Type 'discard' to confirm.
 ```
+
+If Step 0 found open follow-ups, ask in the same message whether to keep
+or drop each one (`references/follow-up-sort.md`, discard path).
 
 Wait for that exact confirmation. When it arrives:
 
@@ -222,4 +253,5 @@ place. If your platform provides a workspace-exit tool, use it.
 | "Removal refused — `--force` is just finishing the cleanup" | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show your human partner and ask. |
 | "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
 | "The base branch is obviously main" | Confirm the fork point or ask. Merging into the wrong base is expensive to undo. |
+| "The PR will close the ticket anyway" | Only if the body says `Closes <ref>`, and only when the base is the default branch. Check the body. |
 | "The push was rejected — force-push will fix it" | A rejected push means the remote moved. Investigate; force-push only on your human partner's explicit request. |
