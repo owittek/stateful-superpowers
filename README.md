@@ -309,9 +309,11 @@ Building a feature turns up things that aren't the current step: a review minor,
 
 **The sort.** Before **finishing-a-development-branch** runs the tests, it shows this branch's open follow-ups, each with a recommendation: do it **now**, make it a **ticket**, or **drop** it. You confirm or change them in one reply. Only what you choose to defer becomes a ticket, and an existing open ticket is reused rather than duplicated.
 
+**The pattern sweep.** Just before the sort, finishing sends a subagent over the branch's diff to find small decisions the codebase now makes in more than one way: a link in a table cell rendered three different ways, long text truncated with and without a tooltip, an error hand-mapped where a helper exists. Each finding (at most 5) joins the sort with the one way to do it. Doing one **now** means a shared component or helper, a lint rule or test that catches the next violation, and every existing instance migrated, so the decision is made once and enforced in code rather than in a rulebook.
+
 **Working from a tracker.** Optional. `tracker init github` (or `local`, for ticket files in the repo) writes `docs/agents/issue-tracker.md`. Then "work on #12" goes to **writing-plans**, which checks blockers, claims the ticket, makes the branch and plans only that ticket's acceptance criteria; finishing resolves it on a local merge, or puts `Closes #12` in a GitHub PR body (GitHub acts on that only when the PR targets the default branch). "What's next" lists the unblocked tracker tickets, including follow-ups you deferred to tickets, for you to pick from.
 
-None of this adds a skill, and a repo with no tracker config and no follow-ups works exactly as before.
+None of this adds a skill, and a repo with no tracker config and no follow-ups works as before, apart from the sweep at finishing.
 
 ## When Something Goes Wrong
 

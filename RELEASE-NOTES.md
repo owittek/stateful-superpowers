@@ -1,8 +1,8 @@
 # Superpowers Release Notes
 
-## v0.10.0-dev (2026-11-16)
+## v0.10.0 (2026-11-16)
 
-Stateful Superpowers pre-release on `next`. Things you find mid-task now go on a follow-up list instead of being chased or forgotten, and finishing a branch asks you to sort them. A repo can also be worked from an issue tracker, ticket by ticket, through the skills you already use. No new skills. A repo with no tracker config and no follow-ups behaves as 0.9.0.
+Things you find mid-task now go on a follow-up list instead of being chased or forgotten, and finishing a branch asks you to sort them. Before that sort, a pattern sweep checks the branch for small decisions the codebase makes in more than one way, and offers to settle each in code. A repo can also be worked from an issue tracker, ticket by ticket, through the skills you already use. No new skills. A repo with no tracker config and no follow-ups behaves as 0.9.0, apart from the sweep at finishing.
 
 ### Follow-ups
 
@@ -15,6 +15,14 @@ Stateful Superpowers pre-release on `next`. Things you find mid-task now go on a
 
 - **finishing-a-development-branch sorts this branch's follow-ups before it runs the tests.** One message lists each with a recommendation (do it now, make it a ticket, or drop it) and you answer once. A ticket is only made when no open one matches. With no follow-ups, finishing reads as before. (#16)
 - **A branch worked from a ticket closes it.** A local merge resolves the ticket. A PR for a GitHub ticket gets `Closes <ref>` in its body (GitHub closes it only when the PR targets the default branch); a local ticket gets a comment with the PR link and stays claimed. Keeping the branch leaves it claimed. (#16)
+- **Follow-ups left by deleted branches show up in the next sort.** A branch merged without finishing used to strand its items for good. (#31)
+
+### Pattern sweep
+
+- **Finishing sweeps the branch for inconsistent patterns before the sort.** A fresh subagent looks only at the kinds of pattern the diff touches (how a cell truncates, tooltips, links in tables, empty values, error mapping, data access, labels), asks first whether a helper for it already exists, and finds the sibling instances. It returns at most 5 findings, each with the one way to do it and the evidence for it. They join the sort with a recommendation. Skipped for docs/tests/config-only branches, on a detached HEAD and when discarding. (#38, #39)
+- **"Now" on a sweep finding settles it in code.** A shared component or helper, a lint rule or test that fails on the next violation, and every existing site migrated. Findings with more than 10 sites elsewhere are recommended as tickets. A dropped finding isn't raised again on that branch. (#39)
+- **A ticketed finding re-sweeps at pickup.** The ticket names the pattern and the chosen answer, never paths; writing-plans re-runs the sweep for that one pattern and plans from what it finds, or resolves the ticket when nothing is left. (#40)
+- **designing-modules looks for an existing helper** when new structure repeats a pattern the codebase already has. (#40)
 
 ### Working from a tracker
 
