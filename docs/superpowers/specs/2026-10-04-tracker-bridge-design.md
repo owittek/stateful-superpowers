@@ -53,9 +53,9 @@ that only appears when a tracker is configured.
 | Per-ticket plan location | `docs/superpowers/plans/`, committed on the ticket branch. | Lands and is reviewed with the PR; SDD resumes from a plan path. |
 | Brainstorming terminal | One offer after spec commit: parent only / parent + tickets / no. | Spine auto-routes; putting work on the tracker is the human's call. |
 | Pickup invocation | Model-invokable, entered only via an explicit ticket reference; no skill may invoke it. `setting-up-tracker` is user-invoked. | Brainstorming's offer and "work on #12" must be able to reach publishing and pickup. |
-| Dev version | Branch `next`, iterated with `--plugin-dir`; later a `stateful-superpowers-next` marketplace entry pinned to `ref: next`, enabled per test project; promote by merging to `main` as 0.9.0. | Verified against the plugin docs: same-name `--plugin-dir` shadows the installed plugin; project `enabledPlugins` overrides user. |
+| Dev version | Branch `next`, iterated with `--plugin-dir`; later a `stateful-superpowers-next` marketplace entry pinned to `ref: next`, enabled per test project; promote by merging to `main` as 0.10.0 (`main` shipped 0.9.0 meanwhile). | Verified against the plugin docs: same-name `--plugin-dir` shadows the installed plugin; project `enabledPlugins` overrides user. |
 | Validation | Dogfood: build this feature through the two-level model by hand first. | Cheap evidence before touching tuned donor skills. |
-| Wayfinder | Not now. Port designed so it is a thin skill later on the same substrate. | It is the design-side twin (decision tickets), reuses our grilling and prototype, and would double this spec. |
+| Wayfinder | Not now. Port designed so it is a thin skill later on the same substrate. | It is the design-side twin (decision tickets), reuses our grilling, the visual companion and spikes, and would double this spec. |
 
 ## Artifact model
 
@@ -259,10 +259,13 @@ ticket" → never write on `main`.
 ### Seam edits
 
 **brainstorming.**
-- Step 1 (explore context): if the idea arrives as an issue ref and a tracker
+Brainstorming tracks upstream's file with fork insertion points (ADR 0003);
+both edits are new insertion points, recorded in `docs/upstream-sync.md`.
+- "Look Before You Ask": if the idea arrives as an issue ref and a tracker
   is configured, `fetch` it and treat body + comments as the idea.
-- After step 7 (design doc committed), when `docs/agents/issue-tracker.md`
-  exists, one offer, its own message:
+- After the design doc is approved and committed, before the HARD-GATE's
+  writing-plans step, when `docs/agents/issue-tracker.md` exists, one offer,
+  its own message:
   > "Register this spec on the tracker? **Parent issue only** keeps it indexed;
   > **parent + tickets** also slices it for pickup in fresh sessions; **no**
   > continues to the plan as usual. Tickets are worth it when the build spans
@@ -270,9 +273,9 @@ ticket" → never write on `main`.
   Parent only → invoke publishing in `register` mode, then continue to
   writing-plans. Parent + tickets → invoke publishing in `slice` mode and stop;
   the terminal for this spec is pickup per ticket. No → writing-plans.
-- No config → no offer, flow identical to 0.8.0.
-- Scope check note for later: "too big and foggy" is wayfinder's exit once it
-  exists; today it still decomposes into a PRD.
+- No config → no offer, flow identical to 0.9.0.
+- "Size the Work" note for later: "too big and foggy" is wayfinder's exit once
+  it exists; today it still decomposes into a PRD umbrella.
 
 **writing-plans.**
 - Header gains an optional line after Goal: `**Ticket:** <ref>` with the spec
@@ -310,7 +313,7 @@ no skill chains into it.
 
 **Manifest and commands.** `commands/setup-tracker.md`,
 `commands/publish-tickets.md`, `commands/pick-up-ticket.md`, each the two-line
-shape of `commands/sync-context.md`. Version on `next`: `0.9.0-dev`.
+shape of `commands/sync-context.md`. Version on `next`: `0.10.0-dev`.
 
 **CONTEXT.md.** Terms added in this commit: Runner skill, Issue tracker, Issue,
 Ticket, Task, Frontier, Spec issue, Tracker port, Claim. "Decision ticket" is
@@ -357,7 +360,7 @@ Single-session: unchanged. Multi-session, GitHub backend:
   `tests/hooks/test-session-start.sh`. Local adapter exercised on every op in a
   temp repo. GitHub adapter exercised against a scratch repo when `gh auth
   status` succeeds, skipped otherwise.
-- **Skills:** pressure tests per `superpowers:writing-skills`, RED on 0.8.0,
+- **Skills:** pressure tests per `superpowers:writing-skills`, RED on 0.9.0,
   GREEN on `next`, transcripts kept under `docs/superpowers/specs/` as for
   designing-modules:
   1. Ticket given, agent tempted with "it's small, just TDD it" → plan file
@@ -368,7 +371,7 @@ Single-session: unchanged. Multi-session, GitHub backend:
   4. Finishing local-merge path → ticket closed; PR path → body carries
      `Closes`.
   5. Brainstorming on a one-plan spec with a tracker configured → offer once;
-     declining leaves the transcript identical to 0.8.0 from that point.
+     declining leaves the transcript identical to 0.9.0 from that point.
   6. Publishing on a three-module spec → tickets are vertical, blockers precede
      dependents, bodies contain no paths.
 - **Clean-repo equivalence:** with no config present, every existing eval
@@ -380,7 +383,7 @@ Single-session: unchanged. Multi-session, GitHub backend:
 
 1. Branch `next` off `main` (this commit). Iterate with
    `claude --plugin-dir /Users/oli/code/super-claude/superpowers`, which
-   shadows the installed 0.8.0 for that session under the same namespace.
+   shadows the installed 0.9.0 for that session under the same namespace.
 2. **Dogfood trial, which is also the build.** Enable issues on
    `owittek/stateful-superpowers`. In one session with Pocock's plugin installed,
    run his setup (GitHub backend; its config is the one our port reads) and his
@@ -394,7 +397,7 @@ Single-session: unchanged. Multi-session, GitHub backend:
 3. Once stable: add a `stateful-superpowers-next` entry to
    `.claude-plugin/marketplace.json` on `main` with `ref: next`; enable it per
    test project with the stable plugin disabled there.
-4. Promote: merge `next` to `main`, version 0.9.0, retire the `-next` entry,
+4. Promote: merge `next` to `main`, version 0.10.0, retire the `-next` entry,
    update `docs/upstream-sync.md` provenance (publishing ← `to-tickets`,
    setting-up-tracker ← `setup-matt-pocock-skills`, pickup ← `implement`).
 
@@ -406,7 +409,7 @@ Single-session: unchanged. Multi-session, GitHub backend:
 - **Wayfinder:** a second producer/consumer on the same port. Parent kind
   `map`, child kind `decision`, map body sections (Destination, Notes, Decisions
   so far, Not yet specified, Out of scope), a decision-resolving runner that
-  calls grilling and prototype, and brainstorming's third scope-check exit. It
+  calls grilling, the visual companion and spikes, and a third exit from brainstorming's Size the Work. It
   replaces handoff for long design work and the PRD for foggy initiatives.
 - **Parallel whole-spec orchestration** (`implement-spec`): multiple pickups in
   worktrees onto an integration branch.
