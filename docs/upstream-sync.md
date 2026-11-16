@@ -5,19 +5,19 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 ## obra/superpowers
 
 - Remote: `source` (`git@github.com:obra/superpowers.git`)
-- Sync point: the merge-base with `source/main` — last merged **v6.2.0** in `f588b18` (fork 0.7.0)
+- Sync point: the merge-base with `source/main` — last merged **v7.0.2** on 2026-11-16 (fork 0.9.0)
 - Process: **merge** `source/main`, resolve, bump the plugin version with `scripts/bump-version.sh`. Never rebase — the merge-base is what makes the next sync diffable, and `d856566` exists purely to repair it after a squash-merge lost the lineage.
 
 ### Recurring conflicts — decide these deliberately
 
-- **Plugin manifests** (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`, `.kimi-plugin/`, `package.json`, `gemini-extension.json`): keep the fork's name/description/author, take upstream's structural changes, then bump to the fork's own version line (0.x, not upstream's 6.x).
+- **Plugin manifests** (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`, `.kimi-plugin/`, `.antigravity-plugin/`, `.devin-plugin/`, `.hermes-plugin/`, `.muse-plugin/`, `package.json`, `gemini-extension.json`): keep the fork's name/description/author, take upstream's structural changes, then bump to the fork's own version line (0.x, not upstream's 7.x). New harness manifests arrive with upstream's identity and must be rebranded; `.muse-plugin/plugin.json` lists skills explicitly, so add the fork-only skills. The Antigravity and Devin manifest tests pin the name — keep them on `stateful-superpowers`.
 - **README install sections**: every install target points at `owittek/stateful-superpowers`. Harnesses that can only resolve upstream (GitHub Copilot CLI, OpenCode's npm install) are called out or dropped rather than silently shipping upstream to fork users.
-- **`brainstorming`'s interview style**: upstream says "one question at a time" in the intro, the checklist, and the body. The fork routes the interview through `superpowers:grilling`'s **frontier rounds** instead. A mechanical merge resolution will revert this — keep ours.
+- **`brainstorming`**: since v7 upstream rewrote it as prose with no checklist and one question at a time. The fork keeps its own spine (the checklist, `superpowers:grilling` **frontier rounds**, the architecture pass, the PRD umbrella, an **always-on gate**) and ports v7 ideas into it by hand: look before asking, a why-first opening (grilling round 0), a fast path, approaches in their own message, sizing, the builder check, process calls made without asking. Upstream's "quick, clear task: just do it" and the dive-in opt-out are **not** gate exemptions here: the fast path can offer to skip the questions, but the user still approves a short design. Spikes map to `superpowers:prototype`. Never take upstream's file wholesale; diff upstream's changes and port them.
 
 ## mattpocock/skills
 
 - No remote — clone it alongside this repo to diff against.
-- **Last reviewed: 2026-08-10, against `84fdeff` (2026-08-06).**
+- **Last reviewed: 2026-11-16, against `5863806` (2026-11-12).** Previous: 2026-08-10, `84fdeff`.
 - Absorbed originally from `ffb2fa6` (2026-06-12) via PRs #1, #2, #4.
 - Process: for each absorbed skill, `git log <last-reviewed-ref>..main -- skills/<dir>` in a mattpocock/skills clone, then port what fits this fork's guardrails. Update the "last reviewed" ref above afterwards.
 
@@ -42,7 +42,15 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 - `prototype`: logic branch is now a single-file clickable HTML demo instead of a terminal TUI.
 - Terminology: "design tree" → "decision tree" across skills.
 
+### Ported in the 2026-11-16 review
+
+- `grilling`: "word each question so 'yes' accepts your recommendation" (`95249b0`); the two-question format example (`85f83d3`); subagents get a fresh context window (`7739eae`, also in `improving-architecture` and `designing-modules`).
+- `handoff`: explicit temp dir (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows) (`4f4e943`).
+- Fork-only: `grilling` round 0 (open why-question, no recommendation), from obra v7 brainstorming; `syncing-context` drops its hardcoded `Explore` subagent.
+
 ### Deliberate divergences — do not "sync" these back
+
+- **`CONTEXT.md` stays `CONTEXT.md`.** Upstream renamed it to `GLOSSARY.md` / `GLOSSARY-MAP.md` (`d80fa0f`); the fork's state model uses CONTEXT.md everywhere.
 
 - **`prototype` stays out of the repo.** Upstream now captures prototypes as a *primary source* on a throwaway branch; this fork keeps the temp-dir / never-committed / discard-when-answered guardrails, because here the prototype is a brainstorming-subordinate probe and the real thing is built from scratch via writing-plans → TDD.
 - **`zoom-out` is kept** even though upstream removed it.
@@ -51,6 +59,6 @@ Stateful Superpowers draws from two upstreams. [obra/superpowers](https://github
 - **Longer skill descriptions.** Upstream trimmed its descriptions; the fork's carry routing detail (which skill invokes which) on purpose.
 - **`improving-architecture` is split into discovery and design.** The design half — `LANGUAGE.md`, `DEEPENING.md`, `INTERFACE-DESIGN.md` and the CONTEXT.md/ADR capture moments — lives in `designing-modules`, a shared engine `brainstorming` also calls. Upstream keeps it all in one skill. When diffing, compare upstream's `improve-codebase-architecture` against **both** fork skills; the design content was moved, not dropped.
 
-### Upstream skills not adopted (as of `84fdeff`)
+### Upstream skills not adopted (as of `5863806`)
 
-`wayfinder` (decision-ticket map on an issue tracker, for work too big for one session), `wizard`, `research`, `to-spec` / `to-tickets`, `code-review`, `triage`, `implement`, `resolving-merge-conflicts`, `wait-what`, `to-questionnaire`, `writing-for-agents`, `ask-matt` (router). Most overlap with the Superpowers spine this fork already has; `wayfinder` is the notable gap if long-horizon planning is ever wanted.
+`implement-spec`, `pr`, `retro`, `chief-of-staff` (in-progress), `software-factory` (in-progress), `wayfinder` (decision-ticket map on an issue tracker, for work too big for one session), `wizard`, `research`, `to-spec` / `to-tickets`, `code-review`, `triage`, `implement`, `wait-what`, `to-questionnaire`, `writing-for-agents`, `ask-matt` (router). Most overlap with the Superpowers spine this fork already has; `wayfinder` is the notable gap if long-horizon planning is ever wanted.

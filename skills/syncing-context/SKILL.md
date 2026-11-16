@@ -30,7 +30,7 @@ opinionated choices and are **sacrosanct**. If nothing exists, this is a bootstr
 
 ### 2. Explore in a subagent
 
-Dispatch an `Explore` subagent to read the repo's **code and existing docs** (README,
+Dispatch a read-only exploration subagent (fresh context window) to read the repo's **code and existing docs** (README,
 `docs/`, specs) and return candidate domain terms — the project-specific nouns that name
 aggregates, entities, modules, domain states, and concepts. Sources are code + docs **only**;
 do not mine git history. The subagent returns a curated candidate list, not raw file dumps,
