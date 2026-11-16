@@ -15,6 +15,19 @@
         "name": "Olivier Wittek",
         "email": "me@wittek.xyz"
       }
+    },
+    {
+      "name": "stateful-superpowers-next",
+      "description": "Pre-release of Stateful Superpowers from the next branch (follow-up list, follow-up sort at finishing, working from an issue tracker). For trying it in a test project: enable it there with stateful-superpowers disabled.",
+      "source": {
+        "source": "github",
+        "repo": "owittek/stateful-superpowers",
+        "ref": "next"
+      },
+      "author": {
+        "name": "Olivier Wittek",
+        "email": "me@wittek.xyz"
+      }
     }
   ]
 }
