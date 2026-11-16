@@ -32,8 +32,8 @@ When multiple skills apply, process skills come first — they set the approach,
 
 ### Routing by intent
 
-- **Ticket work ("work on #12", a ticket URL or ref)** → `superpowers:writing-plans` (its Ticket Intake)
-- **"What's next" / "what's open"** → run `../finishing-a-development-branch/scripts/tracker frontier ticket` and `... frontier followup` by its absolute path, from the working tree; show both lists by title, your human partner picks, then `superpowers:writing-plans` with that ref. No `docs/agents/issue-tracker.md` → say no tracker is configured.
+- **Ticket work ("work on #12", a ticket URL or ref) with `docs/agents/issue-tracker.md` present** → `superpowers:writing-plans` (its Ticket Intake); no config → route by intent below
+- **"What's next" / "what's open"** → run `../finishing-a-development-branch/scripts/tracker frontier ticket` and `... frontier followup` by its absolute path, from the working tree (backend not supported by it → the same query by hand per the config); show both lists by title, your human partner picks, then `superpowers:writing-plans` with that ref. No `docs/agents/issue-tracker.md` → say no tracker is configured.
 - **New feature / new behavior** → `superpowers:brainstorming`
 - **Restructure existing code, behavior preserved (refactor)** → `superpowers:improving-architecture`
 - **Bug / regression** → `superpowers:systematic-debugging`
