@@ -13,22 +13,24 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 ## Step 0: Sort Follow-ups
 
-**Pattern sweep first.** Skip it on a detached HEAD, when your human partner
-has already asked to discard the work, and when every file in the branch's
-diff is docs, tests or config. Otherwise (`FOLLOWUP` is this skill's
-`scripts/followup`, run by its absolute path, from the working tree you're
-executing in):
+**Pattern sweep first.** `FOLLOWUP` is this skill's `scripts/followup`,
+run by its absolute path, from the working tree you're executing in.
 
-- BASE: `git merge-base <base> HEAD`, with `<base>` the base branch if the
-  plan, ticket or conversation already names it, else the default branch.
-  Step 3 still confirms the base before any merge.
-- PRIOR: the lines of `FOLLOWUP list` (this branch, open and closed)
-  that contain `(sweep)`, or `(none)`.
+- BASE_SHA: `git merge-base <base> HEAD`, with `<base>` the base branch if
+  the plan, ticket or conversation already names it, else the default
+  branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, else `main`).
+  Step 3 still confirms the base before any merge. HEAD_SHA:
+  `git rev-parse HEAD`.
+- Skip the sweep on a detached HEAD, when your human partner has already
+  asked to discard the work, and when every file in
+  `git diff --name-only BASE_SHA..HEAD_SHA` is docs, tests or config.
+- PRIOR: the lines of `FOLLOWUP list` (this branch, open and closed) that
+  contain `(sweep)`, or `(none)`.
 - Dispatch a fresh subagent with `references/pattern-sweep-prompt.md` in
   branch mode (no subagent tool: run it yourself, read-only).
 - For each finding:
-  `FOLLOWUP add "<pattern> → <canonical choice>" --source sweep`. Keep the full findings for the sort;
-  `NO FINDINGS` adds nothing.
+  `FOLLOWUP add "<pattern> → <canonical choice>" --source sweep`. Keep the
+  full findings for the sort; `NO FINDINGS` adds nothing.
 
 Then run this skill's `scripts/followup list --open --orphaned` by its absolute
 path, from the working tree you're executing in. It prints this branch's

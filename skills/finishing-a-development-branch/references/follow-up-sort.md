@@ -43,6 +43,8 @@ Before I run the tests: <K> open follow-ups on <branch>.
 Reply "ok" to take these, or change any (e.g. "2 drop").
 ```
 
+Items ending `(sweep)`: read section 3a before writing this message.
+
 Wait for the reply. One reply settles every item; don't re-ask per item.
 
 ## 3. Carry out each disposition
@@ -100,7 +102,8 @@ one area of the codebase.
   architecture test, component test; none → say so, no new tooling), migrate
   every site in and outside the diff, TDD as usual. Record the canonical
   choice in the primitive's doc comment and the enforcement's message.
-- **ticket:** the body above plus two sections, still without paths:
+- **ticket:** the body above, with What naming the pattern and its kind,
+  plus two sections before `## Acceptance criteria`, still without paths:
 
   ```markdown
   ## Canonical choice
@@ -112,7 +115,7 @@ one area of the codebase.
   What fails on a new violation, using the repo's existing tooling.
   ```
 
-  Acceptance criteria: the primitive exists, the enforcement fails on a new
+  These acceptance criteria replace the template's: the primitive exists, the enforcement fails on a new
   violation, no site is left — checked at pickup by running the sweep in
   pattern mode.
 - **drop:** as any item; the next sweep on this branch gets it in PRIOR and

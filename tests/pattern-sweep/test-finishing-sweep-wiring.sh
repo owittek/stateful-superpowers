@@ -19,18 +19,28 @@ has() { # has LABEL FILE NEEDLE
   if grep -qF -- "$3" "$2"; then pass "$1 has $3"; else fail "$1 has $3"; fi
 }
 
+step0=$(awk '/^## Step 0/ { on = 1 } /^## Step 1/ { exit } on' "$SKILL")
+in_step0() { # in_step0 NEEDLE
+  case "$step0" in *"$1"*) pass "Step 0 has $1" ;; *) fail "Step 0 has $1" ;; esac
+}
+
 line_of() { grep -nF -- "$2" "$1" | head -1 | cut -d: -f1 || true; }
 
 echo "pattern sweep: finishing wiring"
 sweep=$(line_of "$SKILL" "references/pattern-sweep-prompt.md")
 list=$(line_of "$SKILL" "followup list --open --orphaned")
-if [ -n "$sweep" ] && [ -n "$list" ] && [ "$sweep" -lt "$list" ]; then
+step0_line=$(line_of "$SKILL" "## Step 0")
+if [ -n "$sweep" ] && [ -n "$list" ] && [ -n "$step0_line" ] \
+  && [ "$step0_line" -lt "$sweep" ] && [ "$sweep" -lt "$list" ]; then
   pass "Step 0 dispatches the sweep before listing follow-ups"
 else
   fail "Step 0 dispatches the sweep before listing follow-ups (sweep line ${sweep:-none}, list line ${list:-none})"
 fi
-for n in "--source sweep" "detached HEAD" "discard" "docs, tests or config"; do has SKILL.md "$SKILL" "$n"; done
-for n in "## Canonical choice" "## Enforcement" "more than 10" "(sweep)" "pattern mode"; do has follow-up-sort.md "$SORT" "$n"; done
+for n in "Pattern sweep first" "--source sweep" "Skip the sweep on a detached HEAD" \
+  "already
+  asked to discard" "docs, tests or config" "HEAD_SHA" "refs/remotes/origin/HEAD"; do in_step0 "$n"; done
+for n in "## Canonical choice" "## Enforcement" "more than 10" "(sweep)" "pattern mode" \
+  "read section 3a before"; do has follow-up-sort.md "$SORT" "$n"; done
 entry=$(grep -F -- '**`finishing-a-development-branch`**' "$SYNC" || true)
 case "$entry" in
   *"(9)"*"pattern sweep"*) pass "upstream-sync records the sweep as finishing insertion point 9" ;;
