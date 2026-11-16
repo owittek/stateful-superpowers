@@ -152,6 +152,44 @@ op_list() {
   ' "$LIST"
 }
 
+op_done() {
+  local n disposition tmp state
+  [ $# -ge 3 ] && [ "$2" = "--as" ] || usage
+  n=$1
+  case "$3" in
+    now | dropped)
+      [ $# -eq 3 ] || usage
+      disposition=$3
+      ;;
+    ticket)
+      [ $# -eq 4 ] || usage
+      disposition=$4
+      single_line "ticket ref" "$disposition"
+      ;;
+    *) usage ;;
+  esac
+  case "$n" in
+    '' | *[!0-9]* | 0*) die "bad follow-up number: $n" ;;
+  esac
+  resolve_list
+  state=none
+  [ ! -f "$LIST" ] || state=$(awk -v n="$n. " '
+    substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [ ] " { s = "open" }
+    substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [x] " { s = "closed" }
+    END { print s ? s : "none" }' "$LIST")
+  case "$state" in
+    none) die "no follow-up $n" ;;
+    closed) die "follow-up $n is already closed" ;;
+  esac
+  # Temp file beside the list, then mv: an interrupted rewrite never leaves
+  # a torn list behind.
+  tmp=$(mktemp "$DIR/.followups.XXXXXX")
+  awk -v p="- [ ] $n. " -v d="$disposition" '
+    index($0, p) == 1 { $0 = "- [x] " substr($0, 7) " → " d }
+    { print }
+  ' "$LIST" >"$tmp" && mv "$tmp" "$LIST" || { rm -f "$tmp"; die "could not rewrite $LIST"; }
+}
+
 op_count() {
   [ $# -eq 0 ] || usage
   resolve_list
@@ -176,6 +214,7 @@ shift
 case "$op" in
   add) op_add "$@" ;;
   list) op_list "$@" ;;
+  done) op_done "$@" ;;
   count) op_count "$@" ;;
   *) usage ;;
 esac
