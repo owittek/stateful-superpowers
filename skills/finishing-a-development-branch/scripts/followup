@@ -75,10 +75,12 @@ resolve_list() {
 # current_branch -> the short name of the checked-out branch; refuses on a
 # detached HEAD, which has no branch to tag an item with
 current_branch() {
-  local branch
-  branch=$(git symbolic-ref --short -q HEAD) \
+  local ref
+  # Strip refs/heads/ by hand: --short prints heads/X when a tag is also
+  # named X, which would split one branch's items across two tags.
+  ref=$(git symbolic-ref -q HEAD) \
     || die "detached HEAD: check out a branch to tag follow-ups with"
-  printf '%s\n' "$branch"
+  printf '%s\n' "${ref#refs/heads/}"
 }
 
 ensure_dir() {
@@ -121,6 +123,11 @@ op_add() {
   n=$(($(max_number) + 1))
   line="- [ ] $n. [$branch] $text"
   [ -z "$source" ] || line="$line ($source)"
+  # A hand-edited list may lack its final newline; appending straight after
+  # it would merge two items into one line.
+  if [ -s "$LIST" ] && [ -n "$(tail -c 1 "$LIST")" ]; then
+    printf '\n' >>"$LIST"
+  fi
   printf '%s\n' "$line" >>"$LIST"
   printf '%s\n' "$n"
 }
@@ -140,7 +147,10 @@ op_list() {
   [ -f "$LIST" ] || return 0
   # Match on the exact "] [branch] " tag after the number, so branch feat
   # never shows feat-x's items and text cannot fake a tag.
-  awk -v open="$open" -v branch="$branch" '
+  # Values go to awk through the environment: awk -v would expand
+  # backslash escapes in them.
+  OPEN=$open BRANCH=$branch awk '
+    BEGIN { open = ENVIRON["OPEN"]; branch = ENVIRON["BRANCH"] }
     !/^- \[[ x]\] [0-9]+\. \[/ { next }
     open == "true" && substr($0, 1, 6) != "- [ ] " { next }
     branch != "" {
@@ -173,7 +183,8 @@ op_done() {
   esac
   resolve_list
   state=none
-  [ ! -f "$LIST" ] || state=$(awk -v n="$n. " '
+  [ ! -f "$LIST" ] || state=$(N="$n. " awk '
+    BEGIN { n = ENVIRON["N"] }
     substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [ ] " { s = "open" }
     substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [x] " { s = "closed" }
     END { print s ? s : "none" }' "$LIST")
@@ -184,7 +195,8 @@ op_done() {
   # Temp file beside the list, then mv: an interrupted rewrite never leaves
   # a torn list behind.
   tmp=$(mktemp "$DIR/.followups.XXXXXX")
-  awk -v p="- [ ] $n. " -v d="$disposition" '
+  P="- [ ] $n. " D=$disposition awk '
+    BEGIN { p = ENVIRON["P"]; d = ENVIRON["D"] }
     index($0, p) == 1 { $0 = "- [x] " substr($0, 7) " → " d }
     { print }
   ' "$LIST" >"$tmp" && mv "$tmp" "$LIST" || { rm -f "$tmp"; die "could not rewrite $LIST"; }
