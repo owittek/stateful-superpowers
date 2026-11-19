@@ -23,13 +23,18 @@
 # A branch whose worktree is gone keeps its items until they are closed;
 # `list --orphaned` adds the items of branches that no longer exist locally,
 # so a branch merged without finishing still gets its items sorted.
+# `keep N` re-tags an open item [*] — a kept follow-up, which outlives its
+# branch: `*` is not a valid branch name, so no branch's `list` shows it and
+# --orphaned never does. `list --kept` prints the open kept items.
 #
 # -C DIR runs as if started in DIR, the way git -C does (see sdd-workspace).
 #
 # Usage:
 #   followup [-C DIR] add TEXT [--source S]          -> prints N
 #   followup [-C DIR] list [--open] [--all] [--orphaned] -> item lines
+#   followup [-C DIR] list --kept                    -> open kept items
 #   followup [-C DIR] done N --as now|dropped|ticket REF
+#   followup [-C DIR] keep N
 #   followup [-C DIR] count                          -> open items, all branches
 set -euo pipefail
 
@@ -37,7 +42,9 @@ usage() {
   {
     echo "usage: followup [-C DIR] add TEXT [--source S]"
     echo "       followup [-C DIR] list [--open] [--all] [--orphaned]"
+    echo "       followup [-C DIR] list --kept"
     echo "       followup [-C DIR] done N --as now|dropped|ticket REF"
+    echo "       followup [-C DIR] keep N"
     echo "       followup [-C DIR] count"
   } >&2
   exit 2
@@ -135,9 +142,10 @@ op_add() {
 }
 
 op_list() {
-  local open=false all=false orphaned=false branch="" live=""
+  local open=false all=false orphaned=false kept=false branch="" live=""
   while [ $# -gt 0 ]; do
     case "$1" in
+      --kept) kept=true ;;
       --open) open=true ;;
       --all) all=true ;;
       --orphaned) orphaned=true ;;
@@ -146,6 +154,13 @@ op_list() {
     shift
   done
   resolve_list
+  # --kept stands alone: open items tagged [*], on any branch.
+  if [ "$kept" = true ]; then
+    [ "$all" = false ] && [ "$orphaned" = false ] || usage
+    [ -f "$LIST" ] || return 0
+    awk 'substr($0, 1, 6) == "- [ ] " && /^- \[ \] [0-9]+\. \[\*\] /' "$LIST"
+    return 0
+  fi
   [ "$all" = true ] || branch=$(current_branch)
   [ -f "$LIST" ] || return 0
   # Local branch names, one per line, for --orphaned. Strip refs/heads/ by
@@ -173,7 +188,7 @@ op_list() {
       if (substr(rest, 1, length(tag)) != tag) {
         if (orphaned != "true") next
         end = index(rest, "] ")
-        if (end < 3 || (substr(rest, 2, end - 2) in alive)) next
+        if (end < 3 || substr(rest, 2, end - 2) == "*" || (substr(rest, 2, end - 2) in alive)) next
       }
     }
     { print }
@@ -220,6 +235,39 @@ op_done() {
   ' "$LIST" >"$tmp" && mv "$tmp" "$LIST" || { rm -f "$tmp"; die "could not rewrite $LIST"; }
 }
 
+op_keep() {
+  local n state tmp
+  [ $# -eq 1 ] || usage
+  n=$1
+  case "$n" in
+    '' | *[!0-9]* | 0*) die "bad follow-up number: $n" ;;
+  esac
+  resolve_list
+  state=none
+  [ ! -f "$LIST" ] || state=$(N="$n. " awk '
+    BEGIN { n = ENVIRON["N"] }
+    substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [ ] " {
+      s = (substr($0, 7 + length(n), 4) == "[*] ") ? "kept" : "open"
+    }
+    substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [x] " { s = "closed" }
+    END { print s ? s : "none" }' "$LIST")
+  case "$state" in
+    none) die "no follow-up $n" ;;
+    closed) die "follow-up $n is already closed" ;;
+    kept) die "follow-up $n is already kept" ;;
+  esac
+  tmp=$(mktemp "$DIR/.followups.XXXXXX")
+  P="- [ ] $n. " awk '
+    BEGIN { p = ENVIRON["P"] }
+    index($0, p) == 1 {
+      rest = substr($0, length(p) + 1)
+      end = index(rest, "] ")
+      $0 = p "[*] " substr(rest, end + 2)
+    }
+    { print }
+  ' "$LIST" >"$tmp" && mv "$tmp" "$LIST" || { rm -f "$tmp"; die "could not rewrite $LIST"; }
+}
+
 op_count() {
   [ $# -eq 0 ] || usage
   resolve_list
@@ -245,6 +293,7 @@ case "$op" in
   add) op_add "$@" ;;
   list) op_list "$@" ;;
   done) op_done "$@" ;;
+  keep) op_keep "$@" ;;
   count) op_count "$@" ;;
   *) usage ;;
 esac
