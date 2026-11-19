@@ -38,7 +38,7 @@ When multiple skills apply, process skills come first — they set the approach,
 - **Restructure existing code, behavior preserved (refactor)** → `superpowers:improving-architecture`
 - **Bug / regression** → `superpowers:systematic-debugging`
 - **Document or comment a module (interfaces, fields, non-obvious internals)** → `superpowers:commenting-modules`
-- **"Note that for later" / "follow up on X"** → no skill: run `{{SKILLS_DIR}}/finishing-a-development-branch/scripts/followup add "<X>"` (if that path is not absolute, the helper is in the `finishing-a-development-branch` skill's `scripts/` directory), from the working tree you're executing in, and reply "Noted as follow-up N."
+- **"Note that for later" / "follow up on X"** → no skill: run `{{SKILLS_DIR}}/finishing-a-development-branch/scripts/followup add "<X>"` (if that path is not absolute, the helper is in the `finishing-a-development-branch` skill's `scripts/` directory), from the working tree you're executing in, and reply "Noted as follow-up N." Open to-dos go there, never in memory files.
 
 `brainstorming` and `improving-architecture` are **peer front-ends** — both interview the user, both terminate into `writing-plans`. Pick by new-behavior vs preserve-behavior; do not route refactors through brainstorming.
 
