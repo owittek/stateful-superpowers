@@ -16,7 +16,7 @@ assert_file_has_line "keep re-tags the item [*]" "$list" "- [ ] 1. [*] long-live
 assert_eq "the branch's list no longer shows it" "- [ ] 2. [feat] text with [*] inside" "$(fu "$feat" list --open)"
 assert_eq "list --kept shows it from another branch" "- [ ] 1. [*] long-lived (review)" "$(fu "$repo" list --kept)"
 assert_eq "list --all still shows it" 2 "$(fu "$repo" list --all | wc -l | tr -d ' ')"
-assert_eq "count still counts it" 2 "$(fu "$repo" count)"
+assert_eq "count leaves kept items out" 1 "$(fu "$repo" count)"
 
 echo "followup: kept items are never orphans"
 g -C "$repo" worktree remove "$feat"
@@ -25,7 +25,9 @@ assert_eq "list --open --orphaned shows the deleted branch's item, not the kept 
   "- [ ] 2. [feat] text with [*] inside" "$(fu "$repo" list --open --orphaned)"
 
 echo "followup: closing and refusing"
+printf '%s\n' "- [ ] 7. no tag here" >>"$list"
 before=$(cat "$list")
+assert_fails "keep an untagged hand-edited line" "no branch tag" fu "$repo" keep 7
 assert_fails "keep an already kept item" "already kept" fu "$repo" keep 1
 assert_fails "keep a missing item" "no follow-up 9" fu "$repo" keep 9
 assert_fails "keep a bad number" "bad follow-up number" fu "$repo" keep x

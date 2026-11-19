@@ -35,7 +35,7 @@
 #   followup [-C DIR] list --kept                    -> open kept items
 #   followup [-C DIR] done N --as now|dropped|ticket REF
 #   followup [-C DIR] keep N
-#   followup [-C DIR] count                          -> open items, all branches
+#   followup [-C DIR] count                          -> open items, all branches, kept excluded
 set -euo pipefail
 
 usage() {
@@ -247,7 +247,10 @@ op_keep() {
   [ ! -f "$LIST" ] || state=$(N="$n. " awk '
     BEGIN { n = ENVIRON["N"] }
     substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [ ] " {
-      s = (substr($0, 7 + length(n), 4) == "[*] ") ? "kept" : "open"
+      rest = substr($0, 7 + length(n))
+      if (substr(rest, 1, 4) == "[*] ") s = "kept"
+      else if (substr(rest, 1, 1) == "[" && index(rest, "] ") > 2) s = "open"
+      else s = "untagged"
     }
     substr($0, 7, length(n)) == n && substr($0, 1, 6) == "- [x] " { s = "closed" }
     END { print s ? s : "none" }' "$LIST")
@@ -255,6 +258,7 @@ op_keep() {
     none) die "no follow-up $n" ;;
     closed) die "follow-up $n is already closed" ;;
     kept) die "follow-up $n is already kept" ;;
+    untagged) die "follow-up $n has no branch tag" ;;
   esac
   tmp=$(mktemp "$DIR/.followups.XXXXXX")
   P="- [ ] $n. " awk '
@@ -272,7 +276,7 @@ op_count() {
   [ $# -eq 0 ] || usage
   resolve_list
   if [ -f "$LIST" ]; then
-    awk '/^- \[ \] [0-9]+\. / { n++ } END { print n + 0 }' "$LIST"
+    awk '/^- \[ \] [0-9]+\. / && !/^- \[ \] [0-9]+\. \[\*\] / { n++ } END { print n + 0 }' "$LIST"
   else
     echo 0
   fi

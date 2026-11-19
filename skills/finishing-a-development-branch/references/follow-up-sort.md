@@ -59,7 +59,7 @@ Kept items the reply doesn't name stay kept.
 - **drop:** `FOLLOWUP done N --as dropped`.
 - **keep:** `FOLLOWUP keep N`. It leaves the branch and shows only in later
   reminders. A reply naming an already kept item: now, ticket or drop as
-  above.
+  above; keep is a no-op.
 - **ticket:** look for an open duplicate first:
   `TRACKER find followup "<word>"`. TEXT is one literal, case-insensitive
   substring, not a set of keywords: search each distinctive word of the
@@ -145,13 +145,13 @@ your report — "Follow-ups <N, M> stay open on the list." — and continue.
 ## 5. Report
 
 After the sort, one line per disposition before Step 1, e.g.
-"Fixed 1; 2 → ticket follow-ups/03; 3 dropped."
+"Fixed 1; 2 → ticket follow-ups/03; 3 dropped; 4 kept."
 
 ## 6. Discard path
 
 When your human partner asked to discard the work, the sort is reduced to
 **keep** (`FOLLOWUP keep N`: it outlives the branch) or **drop**
 (`FOLLOWUP done N --as dropped`), for this branch's items only. Ask it
-below the discard confirmation request; run the `done` calls after the
-typed `discard` arrives and before the branch is deleted. No confirmation:
+below the discard confirmation request; run the `done` and `keep` calls after
+the typed `discard` arrives and before the branch is deleted. No confirmation:
 nothing changes.

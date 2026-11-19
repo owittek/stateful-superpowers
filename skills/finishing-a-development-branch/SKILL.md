@@ -39,8 +39,9 @@ deleted without a sort), which nothing else would ever surface. Also run
 `FOLLOWUP list --kept`: kept follow-ups, which outlive
 their branch and are shown here only as a reminder.
 
-**If both print nothing, or exit non-zero (a detached HEAD has no branch to
-tag follow-ups with):** say nothing about follow-ups; continue to Step 1.
+**If neither printed anything** (`list --open --orphaned` exits non-zero
+on a detached HEAD, which has no branch to tag follow-ups with — count that
+as nothing): say nothing about follow-ups; continue to Step 1.
 
 **If only `list --kept` printed items:** show them in one line — "Still
 kept: <N. text>; …" — and continue to Step 1 without waiting. Your human
@@ -204,7 +205,7 @@ Type 'discard' to confirm.
 ```
 
 If `followup list --open` still prints items for this branch (Step 0 never
-ran, or kept some open), list them under the confirmation request and ask
+ran, or left some open), list them under the confirmation request and ask
 keep or drop for each (`references/follow-up-sort.md`, discard path); the
 typed `discard` is still required on its own.
 
