@@ -3,7 +3,7 @@
 Step 0 of finishing-a-development-branch, read only when
 `followup list --open --orphaned` printed items: this branch's, and any
 left by branches that no longer exist. Every item gets one
-disposition — **now**, **ticket** or **drop** — chosen by your human
+disposition — **now**, **ticket**, **keep** or **drop** — chosen by your human
 partner in one reply, before the test run (doing items changes code).
 
 `FOLLOWUP` and `TRACKER` below are this skill's `scripts/followup` and
@@ -31,7 +31,9 @@ deleted branches under their own line ("Left by deleted branches:"); check
 each against the base before recommending, since the work may have fixed it
 already. Recommend **now**
 for anything small enough to fix on this branch, **ticket** for real work
-that outlives this branch, **drop** for items the branch made moot.
+that outlives this branch, **keep** for a to-do that outlives the branch but
+isn't worth a ticket (or there's no tracker), **drop** for items the branch
+made moot. Last, the items `list --kept` printed, text only, as a reminder.
 
 ```
 Before I run the tests: <K> open follow-ups on <branch>.
@@ -40,18 +42,24 @@ Before I run the tests: <K> open follow-ups on <branch>.
 2. <text> — ticket: <why>
 3. <text> — drop: <why>
 
-Reply "ok" to take these, or change any (e.g. "2 drop").
+Still kept (no action needed): 7. <text>; 8. <text>
+
+Reply "ok" to take these, or change any (e.g. "2 drop", "7 now").
 ```
 
 Items ending `(sweep)`: read section 3a before writing this message.
 
 Wait for the reply. One reply settles every item; don't re-ask per item.
+Kept items the reply doesn't name stay kept.
 
 ## 3. Carry out each disposition
 
 - **now:** fix it on the branch (TDD as usual), then
   `FOLLOWUP done N --as now`.
 - **drop:** `FOLLOWUP done N --as dropped`.
+- **keep:** `FOLLOWUP keep N`. It leaves the branch and shows only in later
+  reminders. A reply naming an already kept item: now, ticket or drop as
+  above; keep is a no-op.
 - **ticket:** look for an open duplicate first:
   `TRACKER find followup "<word>"`. TEXT is one literal, case-insensitive
   substring, not a set of keywords: search each distinctive word of the
@@ -137,13 +145,13 @@ your report — "Follow-ups <N, M> stay open on the list." — and continue.
 ## 5. Report
 
 After the sort, one line per disposition before Step 1, e.g.
-"Fixed 1; 2 → ticket follow-ups/03; 3 dropped."
+"Fixed 1; 2 → ticket follow-ups/03; 3 dropped; 4 kept."
 
 ## 6. Discard path
 
 When your human partner asked to discard the work, the sort is reduced to
-**keep** (item stays open on the list, it outlives the branch) or **drop**
+**keep** (`FOLLOWUP keep N`: it outlives the branch) or **drop**
 (`FOLLOWUP done N --as dropped`), for this branch's items only. Ask it
-below the discard confirmation request; run the `done` calls after the
-typed `discard` arrives and before the branch is deleted. No confirmation:
+below the discard confirmation request; run the `done` and `keep` calls after
+the typed `discard` arrives and before the branch is deleted. No confirmation:
 nothing changes.

@@ -1,5 +1,10 @@
 # Superpowers Release Notes
 
+## v0.10.1 (2026-11-19)
+
+- **Follow-ups that outlive their branch can be kept.** The follow-up sort gains a fourth option, **keep**: the item leaves the branch, is never sorted again, and is listed as a reminder at the end of every later sort ("Still kept"), where one reply can do or drop it. `followup keep N`, `followup list --kept`. Kept items are left out of `count` and the compaction reminder; nothing new is shown at session start. (#45)
+- **Open to-dos go on the follow-up list, never in memory files.** The routing line for "note that for later" now says so, so agents stop parking project to-dos in auto-memory where they're only seen when something related comes up. (#45)
+
 ## v0.10.0 (2026-11-16)
 
 Things you find mid-task now go on a follow-up list instead of being chased or forgotten, and finishing a branch asks you to sort them. Before that sort, a pattern sweep checks the branch for small decisions the codebase makes in more than one way, and offers to settle each in code. A repo can also be worked from an issue tracker, ticket by ticket, through the skills you already use. No new skills. A repo with no tracker config and no follow-ups behaves as 0.9.0, apart from the sweep at finishing.
