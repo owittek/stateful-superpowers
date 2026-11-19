@@ -71,7 +71,8 @@ followups_file="${CLAUDE_PROJECT_DIR:-}/.superpowers/followups.md"
 if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -r "$followups_file" ]; then
   open_followups=0
   while IFS= read -r line || [ -n "$line" ]; do
-    [[ $line == '- [ ] '* ]] && open_followups=$((open_followups + 1))
+    # Kept items ([*]) are reminders shown at finishing, not open work here.
+    [[ $line == '- [ ] '* && $line != '- [ ] '[0-9]*'. [*] '* ]] && open_followups=$((open_followups + 1))
   done < "$followups_file"
   if [ "$open_followups" -gt 0 ] && [ ! -t 0 ]; then
     hook_input=""

@@ -102,9 +102,15 @@ main checkout so they survive compaction, subagent hand-backs and worktree
 removal until the follow-up sort.
 _Avoid_: scratchpad, notes, inbox
 
+**Kept follow-up**:
+A follow-up that outlives its branch without becoming a ticket. It leaves the
+branch's sort and is shown as a reminder at every later finishing until done
+or dropped.
+_Avoid_: project follow-up, backlog item
+
 **Follow-up sort**:
 The step at the start of finishing where each open follow-up is done now,
-deferred to a ticket, or dropped, with the human.
+deferred to a ticket, kept, or dropped, with the human.
 _Avoid_: triage, cleanup pass
 
 **Pattern sweep**:

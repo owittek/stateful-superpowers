@@ -377,14 +377,18 @@ assert_command_output \
 # SessionStart source on stdin as JSON.
 followup_project="$TEST_ROOT/followup-project"
 mkdir -p "$followup_project/.superpowers"
-printf '%s\n%s\n%s' \
+printf '%s\n%s\n%s\n%s' \
     '- [ ] 1. [main] first open (review)' \
+    '- [ ] 4. [*] kept, not counted' \
     '- [x] 2. [main] closed one → dropped' \
     '- [ ] 3. [feat] second open, no newline' \
     > "$followup_project/.superpowers/followups.md"
 closed_project="$TEST_ROOT/closed-project"
 mkdir -p "$closed_project/.superpowers"
 printf '%s\n' '- [x] 1. [main] closed → now' > "$closed_project/.superpowers/followups.md"
+kept_project="$TEST_ROOT/kept-project"
+mkdir -p "$kept_project/.superpowers"
+printf '%s\n' '- [ ] 1. [*] kept only' > "$kept_project/.superpowers/followups.md"
 clean_project="$TEST_ROOT/clean-project"
 mkdir -p "$clean_project"
 
@@ -446,6 +450,16 @@ assert_command_output \
     "$(make_home followup-closed)" \
     CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
     CLAUDE_PROJECT_DIR="$closed_project" \
+    "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/compact.json"
+
+assert_command_output \
+    "compact with only kept follow-ups adds no count line" \
+    "nested" \
+    "" \
+    "Open follow-ups:" \
+    "$(make_home followup-kept)" \
+    CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+    CLAUDE_PROJECT_DIR="$kept_project" \
     "$bash_bin" -c 'exec "$1" "$2" < "$3"' _ "$bash_bin" "$HOOK_UNDER_TEST" "$stdin_dir/compact.json"
 
 # A clean repo (no list) behaves as 0.9.0: for every source the output is
